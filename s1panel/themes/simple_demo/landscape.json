@@ -1,0 +1,328 @@
+{
+   "orientation": "portrait",
+   "refresh": "update",
+   "screens": [
+      {
+         "id": 1,
+         "name": "Stats",
+         "background": "#282828",
+         "duration": 60000,
+         "led_config": {
+            "theme": 1,
+            "intensity": 3,
+            "speed": 3
+         },
+         "widgets": [
+            {
+               "id": 1,
+               "group": 1,
+               "name": "doughnut_chart",
+               "used": "#00e600",
+               "free": "#4d4d4d",
+               "rect": {
+                  "x": 35,
+                  "y": 0,
+                  "width": 100,
+                  "height": 100
+               },
+               "sensor": true,
+               "value": "cpu_usage",
+               "format": "{0}",
+               "refresh": 1000,
+               "debug_frame": false
+            },
+            {
+               "id": 2,
+               "group": 1,
+               "name": "iconify",
+               "value": "memory",
+               "color": "#878787",
+               "iconSet": "mdi",
+               "rect": {
+                  "x": 60,
+                  "y": 30,
+                  "width": 50,
+                  "height": 50
+               },
+               "refresh": 0,
+               "sensor": false,
+               "debug_frame": false
+            },
+            {
+               "id": 3,
+               "group": 2,
+               "name": "doughnut_chart",
+               "used": "#00e600",
+               "free": "#4d4d4d",
+               "rect": {
+                  "x": 35,
+                  "y": 102,
+                  "width": 100,
+                  "height": 100
+               },
+               "sensor": true,
+               "value": "cpu_temp",
+               "format": "{0}",
+               "refresh": 1000,
+               "debug_frame": false
+            },
+            {
+               "id": 4,
+               "group": 2,
+               "name": "iconify",
+               "value": "temperature-lines",
+               "color": "#878787",
+               "iconSet": "mdi",
+               "rect": {
+                  "x": 60,
+                  "y": 135,
+                  "width": 50,
+                  "height": 50
+               },
+               "sensor": false,
+               "refresh": 0,
+               "debug_frame": false
+            },
+            {
+               "id": 5,
+               "group": 3,
+               "name": "doughnut_chart",
+               "used": "#00e600",
+               "free": "#4d4d4d",
+               "rect": {
+                  "x": 35,
+                  "y": 205,
+                  "width": 100,
+                  "height": 100
+               },
+               "sensor": true,
+               "value": "cpu_power",
+               "format": "{0}",
+               "refresh": 1000,
+               "debug_frame": false
+            },
+            {
+               "id": 6,
+               "group": 3,
+               "name": "iconify",
+               "value": "lightbulb",
+               "color": "#878787",
+               "iconSet": "mdi",
+               "rect": {
+                  "x": 60,
+                  "y": 238,
+                  "width": 50,
+                  "height": 50
+               },
+               "sensor": false,
+               "refresh": 0,
+               "debug_frame": false
+            },
+            {
+               "id": 7,
+               "group": 1,
+               "name": "text",
+               "font": "17px Arial",
+               "color": "#878787",
+               "align": "center",
+               "rect": {
+                  "x": 65,
+                  "y": 81,
+                  "width": 45,
+                  "height": 25
+               },
+               "sensor": true,
+               "value": "cpu_usage",
+               "format": "{0}%",
+               "refresh": 1000,
+               "debug_frame": false
+            },
+            {
+               "id": 8,
+               "group": 2,
+               "name": "text",
+               "font": "17px Arial",
+               "color": "#878787",
+               "align": "center",
+               "rect": {
+                  "x": 62,
+                  "y": 187,
+                  "width": 47,
+                  "height": 24
+               },
+               "sensor": true,
+               "value": "cpu_temp",
+               "format": "{0} {2}",
+               "refresh": 1000,
+               "debug_frame": false
+            },
+            {
+               "id": 9,
+               "group": 3,
+               "name": "text",
+               "font": "17px Arial",
+               "color": "#878787",
+               "align": "center",
+               "rect": {
+                  "x": 59,
+                  "y": 290,
+                  "width": 53,
+                  "height": 21
+               },
+               "sensor": true,
+               "value": "cpu_power",
+               "format": "{0} W",
+               "refresh": 1000,
+               "debug_frame": false
+            },
+            {
+               "id": 10,
+               "group": 1,
+               "name": "text",
+               "rect": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 60,
+                  "height": 17
+               },
+               "sensor": true,
+               "value": "clock",
+               "format": "{1} {3}",
+               "refresh": 1000,
+               "debug_frame": false,
+               "font": "13px Arial",
+               "color": "#47b320",
+               "align": "left"
+            },
+            {
+               "id": 11,
+               "group": 1,
+               "name": "text",
+               "rect": {
+                  "x": 110,
+                  "y": 0,
+                  "width": 60,
+                  "height": 17
+               },
+               "sensor": true,
+               "value": "calendar",
+               "format": "{9}/{2}/{10}",
+               "refresh": 1000,
+               "debug_frame": false,
+               "font": "13px Arial",
+               "color": "#47b320",
+               "align": "right"
+            }
+         ]
+      },
+      {
+         "id": 2,
+         "name": "Time",
+         "background": "#000000",
+         "duartion": 0,
+         "widgets": [
+            {
+               "id": 1,
+               "group": 1,
+               "name": "text",
+               "rect": {
+                  "x": 0,
+                  "y": 40,
+                  "width": 170,
+                  "height": 32
+               },
+               "sensor": true,
+               "value": "calendar",
+               "format": "{4}",
+               "refresh": 1000,
+               "debug_frame": false,
+               "font": "30px Arial",
+               "color": "#ffffff",
+               "align": "center"
+            },
+            {
+               "id": 2,
+               "group": 1,
+               "name": "text",
+               "rect": {
+                  "x": 0,
+                  "y": 100,
+                  "width": 170,
+                  "height": 50
+               },
+               "sensor": true,
+               "value": "calendar",
+               "format": "{6}",
+               "refresh": 1000,
+               "debug_frame": false,
+               "font": "30px Arial",
+               "color": "#ffffff",
+               "align": "center"
+            },
+            {
+               "id": 3,
+               "group": 1,
+               "name": "text",
+               "rect": {
+                  "x": 0,
+                  "y": 145,
+                  "width": 170,
+                  "height": 32
+               },
+               "sensor": true,
+               "value": "calendar",
+               "format": "{3}",
+               "refresh": 1000,
+               "debug_frame": false,
+               "font": "30px Arial",
+               "color": "#ffffff",
+               "align": "center"
+            },
+            {
+               "id": 4,
+               "group": 1,
+               "name": "text",
+               "rect": {
+                  "x": 0,
+                  "y": 190,
+                  "width": 170,
+                  "height": 30
+               },
+               "sensor": true,
+               "value": "calendar",
+               "format": "{8}",
+               "refresh": 1000,
+               "debug_frame": false,
+               "font": "30px Arial",
+               "color": "#ffffff",
+               "align": "center"
+            },
+            {
+               "id": 5,
+               "group": 1,
+               "name": "text",
+               "rect": {
+                  "x": 0,
+                  "y": 250,
+                  "width": 170,
+                  "height": 40
+               },
+               "sensor": true,
+               "value": "clock",
+               "format": "{1} {3}",
+               "refresh": 1000,
+               "debug_frame": false,
+               "font": "30px Arial",
+               "color": "#ffffff",
+               "align": "center"
+            }
+         ],
+         "duration": 60000,
+         "led_config": {
+            "theme": 3,
+            "intensity": 3,
+            "speed": 3
+         }
+      }
+   ]
+}
