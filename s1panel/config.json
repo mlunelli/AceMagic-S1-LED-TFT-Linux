@@ -1,5 +1,5 @@
 {
-   "listen": "127.0.0.1:8686",
+   "listen": "0.0.0.0:8686",
    "theme": "themes/simple_demo/portrait_simple.json",
    "poll": 500,
    "refresh": 1600,
@@ -9,7 +9,11 @@
       {
          "name": "a simple demo portrait orientation",
          "config": "themes/simple_demo/portrait_simple.json"
-      }
+      },
+      {
+"name":"Landscape Stats",
+"config":"themes/simple_demo/landscape.json"
+}
    ],
    "sensors": [
       {
@@ -28,7 +32,7 @@
          "module": "sensors/cpu_temp.js",
          "config": {
             "max_points": 300,
-            "fahrenheit": true
+            "fahrenheit": false
          }
       },
       {
@@ -79,5 +83,5 @@
       "speed": 3,
       "intensity": 3
    },
-   "portrait": true
+   "portrait": false
 }
