@@ -1,6 +1,6 @@
 {
    "listen": "0.0.0.0:8686",
-   "theme": "themes/simple_demo/portrait_simple.json",
+   "theme": "themes/simple_demo/landscape.json",
    "poll": 500,
    "refresh": 1600,
    "heartbeat": 60000,
@@ -11,9 +11,9 @@
          "config": "themes/simple_demo/portrait_simple.json"
       },
       {
-"name":"Landscape Stats",
-"config":"themes/simple_demo/landscape.json"
-}
+         "name": "Landscape Stats",
+         "config": "themes/simple_demo/landscape.json"
+      }
    ],
    "sensors": [
       {
