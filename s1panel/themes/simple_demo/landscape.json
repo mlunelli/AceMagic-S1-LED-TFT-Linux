@@ -189,7 +189,7 @@
                "value": "clock",
                "format": "{0}",
                "refresh": 1000,
-               "debug_frame": true,
+               "debug_frame": false,
                "font": "bold 60px Arial",
                "color": "#FFFFFF",
                "align": "center"
