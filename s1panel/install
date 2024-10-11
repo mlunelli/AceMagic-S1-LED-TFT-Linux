@@ -8,7 +8,7 @@ cat <<EOF
 \rDescription="S1 Panel"
 \r
 \r[Service]
-\rExecStart=/usr/bin/node main.js
+\rExecStart=/root/.nvm/versions/node/v22.9.0/bin/node main.js
 \rWorkingDirectory=$CURRENT_DIR
 \rRestart=always
 \rRestartSec=10
