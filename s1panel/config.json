@@ -56,6 +56,13 @@
          }
       },
       {
+         "module": "sensors/network.js",
+         "config": {
+            "interface": "vmbr0",
+            "max_points": 300
+         }
+      },
+      {
          "module": "sensors/memory.js",
          "config": {
             "max_points": 300
@@ -79,9 +86,9 @@
    "device": "1-8:1.1",
    "led_config": {
       "device": "/dev/ttyUSB0",
-      "theme": 2,
+      "theme": 4,
       "speed": 3,
-      "intensity": 3
+      "intensity": 1
    },
    "portrait": false
 }
