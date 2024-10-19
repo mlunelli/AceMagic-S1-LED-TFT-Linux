@@ -1,15 +1,15 @@
 {
    "orientation": "landscape",
-   "refresh": "update",
+   "refresh": "redraw",
    "screens": [
       {
          "id": 1,
          "name": "Stats",
-         "background": "#282828",
-         "duration": 60000,
+         "background": "#000000",
+         "duration": 15000,
          "led_config": {
-            "theme": 1,
-            "intensity": 3,
+            "theme": 4,
+            "intensity": 1,
             "speed": 3
          },
          "widgets": [
@@ -191,10 +191,23 @@
                "refresh": 1000,
                "debug_frame": false,
                "font": "bold 60px Arial",
-               "color": "#FFFFFF",
+               "color": "#878787",
                "align": "center"
             }
          ]
+      },
+      {
+         "id": 2,
+         "name": "Relax",
+         "background": "#000000",
+         "duartion": 0,
+         "widgets": [],
+         "duration": 4000,
+         "led_config": {
+            "theme": 4,
+            "intensity": 1,
+            "speed": 3
+         }
       }
    ]
 }
