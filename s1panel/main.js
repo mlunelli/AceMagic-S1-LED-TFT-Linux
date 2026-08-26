@@ -142,8 +142,15 @@ function update_device_screen(context, state, config, theme) {
         }
         else if (!state.drawing) {
 
-            if ('redraw' === theme.refresh || state.pending_redraw(state)) {
+            const _forced = state.pending_redraw(state);
+
+            // in redraw mode only push a full frame when a widget actually changed.
+            // pushing 108KB over usb on every poll for an unchanged screen keeps the
+            // device busy for nothing and is what makes it miss real updates
+            if (_forced || ('redraw' === theme.refresh && state.dirty)) {
                 
+                state.dirty = false;
+
                 clear_pending_screen_updates(state);
                 
                 lcd_redraw(state, context.getImageData(0, 0, config.canvas.width, config.canvas.height));
@@ -345,13 +352,20 @@ function next_draw_widgets(context, state, config, widgets, index, total, fulfil
 
             _draw_promise.then(changed => {
 
-                if (!state.drawing && changed) {
-                
-                    calc_update_region(fix_rect_bounds(config, _widget_config.rect)).forEach(each => {
+                if (changed) {
 
-                        state.changes.push(each);
-                        state.change_count++;
-                    });                    
+                    // remember it even while the device is busy, otherwise a change
+                    // that lands during a transfer would never reach the screen
+                    state.dirty = true;
+
+                    if (!state.drawing) {
+                
+                        calc_update_region(fix_rect_bounds(config, _widget_config.rect)).forEach(each => {
+
+                            state.changes.push(each);
+                            state.change_count++;
+                        });                    
+                    }
                 }
 
                 next_draw_widgets(context, state, config, widgets, 1 + index, total, fulfill);
@@ -629,6 +643,7 @@ function main() {
                 redraw_count       : 0,
 
                 drawing            : false,             // drawing in progress
+                dirty              : false,             // a widget changed since the last frame
                 changes            : [],                // screen update regions
                 change_count       : 0,                 // screen update count
 

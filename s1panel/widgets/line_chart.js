@@ -168,6 +168,10 @@ function draw(context, value, min, max, config) {
 
             logger.error('line chart failed to draw');
 
+            // without this the clip stays on the context and every widget
+            // drawn after this one gets clipped away
+            context.restore();
+
         }).finally(() => {
 
             fulfill(_has_changed);

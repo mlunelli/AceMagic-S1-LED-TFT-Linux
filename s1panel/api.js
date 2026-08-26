@@ -17,9 +17,11 @@ function set_dirty(context, redraw) {
 
     const _state = context.state;
 
-    if (redraw) {
-        _state.force_redraw(_state);
-    }
+    // every change made from the gui needs at least one full frame. the redraw flag
+    // used to only matter for update mode, but now that a frame is only pushed when
+    // a widget reports a change, an edit that does not move any sensor value would
+    // otherwise never show up on the panel
+    _state.force_redraw(_state);
                        
     _state.screen_paused = true;
     _state.unsaved_changes = true;

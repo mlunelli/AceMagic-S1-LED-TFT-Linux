@@ -114,42 +114,37 @@ function refresh_device(handle, state) {
     var _promise = Promise.resolve({ type: 'idle' });
 
     if (state.queue.length) {
-        
-        const _last_heartbeat = _now - state.last_heartbeat;
 
-        if (_last_heartbeat > state.heartbeat) {
+        // pending screen work always wins. a heartbeat here would be delayed by
+        // state.refresh after a redraw and it does not report back to the main
+        // thread, which leaves the screen frozen until the delay is over
+        const _job = state.queue.shift();
 
-            _promise = with_delay(handle, state, { type: 'heartbeat' }, start_lcd_heartbeat);
-        }  
-        else
-        {
-            const _job = state.queue.shift();
+        switch (_job.type) {
 
-            switch (_job.type) {
+            case 'redraw':
+                _promise = start_lcd_redraw(handle, state, _job);
+                break;
+
+            case 'update':   
+                _promise = with_delay(handle, state, _job, start_lcd_update);
+                break;
             
-                case 'redraw':
-                    _promise = start_lcd_redraw(handle, state, _job);
-                    break;
+            case 'orientation':
+                _promise = with_delay(handle, state, _job, start_lcd_orientation);
+                break;
 
-                case 'update':   
-                    _promise = with_delay(handle, state, _job, start_lcd_update);
-                    break;
-                
-                case 'orientation':
-                    _promise = with_delay(handle, state, _job, start_lcd_orientation);
-                    break;
-
-                case 'heartbeat':
-                    _promise = with_delay(handle, state, _job, start_lcd_heartbeat);
-                    break;
-            }  
-        }      
+            case 'heartbeat':
+                _promise = with_delay(handle, state, _job, start_lcd_heartbeat);
+                break;
+        }  
     }
     else {
 
         const _last_activity = _now - state.last_activity;
+        const _last_heartbeat = _now - state.last_heartbeat;
         
-        if (_last_activity > state.refresh) {
+        if (_last_activity > state.refresh || _last_heartbeat > state.heartbeat) {
 
             _promise = with_delay(handle, state, { type: 'heartbeat' }, start_lcd_heartbeat);
         }

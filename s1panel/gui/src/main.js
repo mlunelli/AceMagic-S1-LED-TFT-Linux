@@ -26,7 +26,8 @@ import Breadcrumb from 'primevue/breadcrumb';
 import Calendar from 'primevue/calendar';
 import Card from 'primevue/card';
 import Carousel from 'primevue/carousel';
-import ChartPrime from 'primevue/chart';
+// primevue/chart dynamically imports chart.js/auto which is not a dependency
+// of the gui, the component is not used in any template so it is not registered
 import Checkbox from 'primevue/checkbox';
 import Chip from 'primevue/chip';
 import Chips from 'primevue/chips';
@@ -127,7 +128,6 @@ app.component('BlockUI', BlockUI);
 app.component('Calendar', Calendar);
 app.component('Card', Card);
 app.component('Carousel', Carousel);
-app.component('Chart', ChartPrime);
 app.component('Checkbox', Checkbox);
 app.component('Chip', Chip);
 app.component('Chips', Chips);
