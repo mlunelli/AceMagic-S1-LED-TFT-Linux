@@ -200,7 +200,6 @@
          "id": 2,
          "name": "Relax",
          "background": "#000000",
-         "duartion": 0,
          "widgets": [],
          "duration": 60000,
          "led_config": {

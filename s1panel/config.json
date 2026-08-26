@@ -38,7 +38,8 @@
       {
          "module": "sensors/cpu_power.js",
          "config": {
-            "max_points": 300
+            "max_points": 300,
+            "max_watts": 20
          }
       },
       {

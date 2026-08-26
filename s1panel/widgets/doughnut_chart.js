@@ -57,7 +57,14 @@ function draw(context, value, min, max, config) {
         context.rect(_rect.x, _rect.y, _rect.width, _rect.height);
         context.clip();
 
-        const _points = [ Number(value) - min, Number(max)];
+        // the gauge fill is proportional to the sum of the segments, so the
+        // second segment has to be what is left of the range, not the maximum
+        const _min = Number(min) || 0;
+        const _max = Number(max);
+        const _range = _max - _min;
+        const _used = _range > 0 ? Math.min(Math.max(Number(value) - _min, 0), _range) : 0;
+
+        const _points = [ _used, _range > 0 ? _range - _used : 1 ];
         const _labels = [ 'used', 'unused '];
 
         const _configuration = {

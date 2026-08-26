@@ -11,6 +11,8 @@ const spawn    = require('child_process').exec;
 
 const DEFAULT_RATE_MS = 1000;
 const TIMEOUT_COUNT = 30;
+const DEFAULT_SPEED = 1000;
+const DEFAULT_MTU = 1500;
 
 var _running = false;
 var _collect_count = 0;
@@ -30,6 +32,31 @@ function read_file(path) {
             fulfill(data);
         });
     });
+}
+
+function read_optional(path) {
+
+    // bridges, wifi and interfaces that are down have no readable speed,
+    // reading them must not take the whole collector down with it
+    return new Promise(fulfill => {
+
+        fs.readFile(path, 'utf8', (err, data) => {
+
+            fulfill(err ? null : data);
+        });
+    });
+}
+
+function delta_per_second(current, last, elapsed) {
+
+    if (null === last || elapsed <= 0) {
+        return 0;
+    }
+
+    const _delta = current - last;
+
+    // counters only go up, a negative delta means the counter was reset
+    return _delta > 0 ? Math.round(_delta / elapsed) : 0;
 }
 
 function run_command(cmdline) {
@@ -87,8 +114,8 @@ function network_usage(iface) {
     
     return Promise.all([
 
-        read_file(_base_path + '/mtu'),
-        read_file(_base_path + '/speed'),
+        read_optional(_base_path + '/mtu'),
+        read_optional(_base_path + '/speed'),
 
         read_file(_path + '/rx_bytes'),
         read_file(_path + '/tx_bytes'),
@@ -100,10 +127,11 @@ function network_usage(iface) {
     ]);
 }
 
-var _last_rx_bytes = 0;
-var _last_tx_bytes = 0;
-var _last_rx_packets = 0;
-var _last_tx_packets = 0;
+var _last_rx_bytes = null;
+var _last_tx_bytes = null;
+var _last_rx_packets = null;
+var _last_tx_packets = null;
+var _last_time = 0;
 
 function collect(message) {
 
@@ -113,8 +141,9 @@ function collect(message) {
         
         return network_usage(message.iface).then(results => {
         
-            const _link_mtu = Number(results[0]);
-            const _link_speed = Number(results[1]);
+            const _link_mtu = Number(results[0]) || DEFAULT_MTU;
+            const _speed = Number(results[1]);
+            const _link_speed = _speed > 0 ? _speed : DEFAULT_SPEED;
 
             const _current_rx_bytes = Number(results[2]);
             const _current_tx_bytes = Number(results[3]);
@@ -122,17 +151,23 @@ function collect(message) {
             const _current_rx_packets = Number(results[4]);
             const _current_tx_packets = Number(results[5]);
 
-            const _delta_rx_bytes = _last_rx_bytes ? _current_rx_bytes - _last_rx_bytes : 0;
-            const _delta_tx_bytes = _last_tx_bytes ? _current_tx_bytes - _last_tx_bytes : 0;
+            // the rates are per second, no matter what the sample rate is
+            const _now = Math.floor(Number(process.hrtime.bigint()) / 1000000);
+            const _elapsed = _last_time ? (_now - _last_time) / 1000 : 0;
 
-            const _delta_rx_packets = _last_rx_packets ? _current_rx_packets - _last_rx_packets : 0;
-            const _delta_tx_packets = _last_tx_packets ? _current_tx_packets - _last_tx_packets : 0;
+            const _delta_rx_bytes = delta_per_second(_current_rx_bytes, _last_rx_bytes, _elapsed);
+            const _delta_tx_bytes = delta_per_second(_current_tx_bytes, _last_tx_bytes, _elapsed);
+
+            const _delta_rx_packets = delta_per_second(_current_rx_packets, _last_rx_packets, _elapsed);
+            const _delta_tx_packets = delta_per_second(_current_tx_packets, _last_tx_packets, _elapsed);
 
             _last_rx_bytes = _current_rx_bytes;
             _last_tx_bytes = _current_tx_bytes;
 
             _last_rx_packets = _current_rx_packets;
             _last_tx_packets = _current_tx_packets;
+
+            _last_time = _now;
 
             const _netf = results[6];
             var _ipv4 = 'n/a';
@@ -181,9 +216,17 @@ function collect(message) {
         }, err => {
 
             if (!_fault) {
-                logger.error('network_thread: network stats read error: ' + err);
+                logger.error('network_thread: network stats read error for ' + message.iface + ': ' + err);
                 _fault = true;
-            }         
+            }
+
+            // transient errors must not stop the collector, the watchdog in
+            // collect() still stops it when nobody asks for samples anymore
+            setTimeout(() => {
+
+                collect(message);
+
+            }, message.rate || DEFAULT_RATE_MS);
         });
     }
 

@@ -23,8 +23,6 @@ var _swap_history = [];
 var _total_memory = 0;
 var _swap_total = 0;
 
-var _previous = null;
-
 function read_file(path) {
   
     return new Promise((fulfill, reject) => {
@@ -60,6 +58,8 @@ function calc_memory_usage(current) {
     var _current_total = 0;
     var _current_free = 0;
     var _current_cached = 0;
+    var _current_buffers = 0;
+    var _current_reclaimable = 0;
     var _current_swap_total = 0;
     var _current_swap_free = 0;
 
@@ -68,6 +68,8 @@ function calc_memory_usage(current) {
         const _match_total = each.match(/^MemTotal:\s+(\d+)/);
         const _match_free = each.match(/^MemFree:\s+(\d+)/);
         const _match_cached = each.match(/^Cached:\s+(\d+)/);
+        const _match_buffers = each.match(/^Buffers:\s+(\d+)/);
+        const _match_reclaimable = each.match(/^SReclaimable:\s+(\d+)/);
         const _match_swap_total = each.match(/^SwapTotal:\s+(\d+)/);
         const _match_swap_free = each.match(/^SwapFree:\s+(\d+)/);
 
@@ -80,6 +82,12 @@ function calc_memory_usage(current) {
         else if (_match_cached) {
             _current_cached = Number(_match_cached[1]);
         }
+        else if (_match_buffers) {
+            _current_buffers = Number(_match_buffers[1]);
+        }
+        else if (_match_reclaimable) {
+            _current_reclaimable = Number(_match_reclaimable[1]);
+        }
         else if (_match_swap_total) {
             _current_swap_total = Number(_match_swap_total[1]);
         }
@@ -88,19 +96,21 @@ function calc_memory_usage(current) {
         }
     });
 
-    const _current_used = _current_total - _current_free;
-    const _active = _current_used - _current_cached;
+    // same definition of used memory as the free(1) command, page cache,
+    // buffers and reclaimable slab are available so they are not in use
+    const _cache = _current_cached + _current_buffers + _current_reclaimable;
+    const _active = Math.max(_current_total - _current_free - _cache, 0);
     const _swap_used = _current_swap_total - _current_swap_free;
-    
+
     return {
         total: _current_total * 1024,
         free: _current_free * 1024,
-        cached: _current_cached * 1024,
+        cached: _cache * 1024,
         active: _active * 1024,
-        usage:  ((_active / _current_total) * 100.0).toFixed(2),
+        usage: _current_total ? ((_active / _current_total) * 100.0).toFixed(2) : '0.00',
         swap_total: _current_swap_total * 1024,
         swap_used: _swap_used * 1024,
-        swap: ((_swap_used / _current_swap_total) * 100.0).toFixed(2)
+        swap: _current_swap_total ? ((_swap_used / _current_swap_total) * 100.0).toFixed(2) : '0.00'
     };
 }
 
@@ -111,9 +121,9 @@ function mem_usage() {
         read_file('/proc/meminfo').then(meminfo => {
 
             const _response = { total: 0, free: 0, cached: 0, active: 0, usage: 0, swap_total: 0, swap_used: 0, swap: 0 };
-            const _current = meminfo.match(/(^MemTotal:\s+(\d+))|(^MemFree:\s+(\d+))|(^Cached:\s+(\d+))|(^SwapTotal:\s+(\d+))|(^SwapFree:\s+(\d+))/gm);
+            const _current = meminfo.match(/(^MemTotal:\s+(\d+))|(^MemFree:\s+(\d+))|(^Cached:\s+(\d+))|(^Buffers:\s+(\d+))|(^SReclaimable:\s+(\d+))|(^SwapTotal:\s+(\d+))|(^SwapFree:\s+(\d+))/gm);
             
-            if (_previous) {
+            if (_current) {
                 
                 const _memory = calc_memory_usage(_current);
 
@@ -126,15 +136,13 @@ function mem_usage() {
                 _response.swap_used = _memory.swap_used;
                 _response.swap = _memory.swap;
             }
-
-            _previous = _current;
             
             fulfill(_response);
         
         }, err => {
             
             if (!_fault) {
-                logger.error('cpu_usage: failed to read /proc/stat: ' + err);
+                logger.error('memory: failed to read /proc/meminfo: ' + err);
                 _fault = true;
             }
 
