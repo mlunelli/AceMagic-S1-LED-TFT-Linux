@@ -6,7 +6,7 @@
          "id": 1,
          "name": "Stats",
          "background": "#000000",
-         "duration": 15000,
+         "duration": 60000,
          "led_config": {
             "theme": 4,
             "intensity": 1,
@@ -202,7 +202,7 @@
          "background": "#000000",
          "duartion": 0,
          "widgets": [],
-         "duration": 4000,
+         "duration": 60000,
          "led_config": {
             "theme": 4,
             "intensity": 1,
