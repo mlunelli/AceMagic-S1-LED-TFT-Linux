@@ -23,10 +23,10 @@
     "express": "4.22.2",
     "multer": "2.2.0",
     "node-hid": "3.4.0",
-    "serialport": "12.0.0",
+    "serialport": "13.0.0",
     "winston": "3.19.0"
   },
   "engines": {
-    "node": ">=18.12.0"
+    "node": ">=20.0.0"
   }
 }
