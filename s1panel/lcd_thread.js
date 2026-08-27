@@ -14,10 +14,45 @@ const usb_hid     = node_hid.HIDAsync;
 const START_COOL_DOWN = 1000;
 const POLL_TIMEOUT = 10;
 const STATS_INTERVAL = 60000;
+const REDRAW_PACKETS = 27;
 
 function get_hr_time() {
 
     return Math.floor(Number(process.hrtime.bigint()) / 1000000);
+}
+
+function new_bucket() {
+
+    return { count: 0, ok: 0, failed: 0, total: 0, min: 0, max: 0, writes: 0 };
+}
+
+function new_stats() {
+
+    return { since: get_hr_time(), retries: lcd.retry_count(), redraw: new_bucket(), update: new_bucket() };
+}
+
+function record_job(bucket, took, failed, writes) {
+
+    bucket.count++;
+    bucket.writes += writes;
+
+    if (failed) {
+        // a failed job carries a full one second libusb timeout per bad packet,
+        // averaging it in would hide how long the panel really needs
+        bucket.failed++;
+        return;
+    }
+
+    bucket.ok++;
+    bucket.total += took;
+    bucket.max = Math.max(bucket.max, took);
+    bucket.min = bucket.min ? Math.min(bucket.min, took) : took;
+}
+
+function describe(name, bucket) {
+
+    return bucket.count + ' ' + name + ' (' + bucket.failed + ' failed, ' + bucket.writes + ' packets) avg '
+        + (bucket.ok ? Math.round(bucket.total / bucket.ok) : 0) + 'ms min ' + bucket.min + 'ms max ' + bucket.max + 'ms';
 }
 
 function report_stats(state) {
@@ -25,21 +60,25 @@ function report_stats(state) {
     const _stats = state.stats;
     const _elapsed = get_hr_time() - _stats.since;
 
-    if (_elapsed < STATS_INTERVAL || !_stats.frames) {
+    if (_elapsed < STATS_INTERVAL || !(_stats.redraw.count + _stats.update.count)) {
         return;
     }
 
-    logger.info('lcd_thread: ' + _stats.frames + ' frames in ' + Math.round(_elapsed / 1000) + 's, '
-        + _stats.failed + ' failed, ' + (lcd.retry_count() - _stats.retries) + ' write retries, '
-        + 'good redraw took avg ' + (_stats.ok ? Math.round(_stats.total / _stats.ok) : 0) + 'ms'
-        + ' min ' + _stats.min + 'ms max ' + _stats.max + 'ms');
+    const _parts = [];
+
+    if (_stats.redraw.count) {
+        _parts.push(describe('redraws', _stats.redraw));
+    }
+
+    if (_stats.update.count) {
+        _parts.push(describe('updates', _stats.update));
+    }
+
+    _parts.push((lcd.retry_count() - _stats.retries) + ' write retries');
+
+    logger.info('lcd_thread: in ' + Math.round(_elapsed / 1000) + 's: ' + _parts.join(' | '));
 
     state.stats = new_stats();
-}
-
-function new_stats() {
-
-    return { since: get_hr_time(), frames: 0, ok: 0, failed: 0, total: 0, min: 0, max: 0, retries: lcd.retry_count() };
 }
 
 function start_lcd_redraw(handle, state, job) {
@@ -61,22 +100,7 @@ function start_lcd_redraw(handle, state, job) {
 
         }).finally(() => {
             
-            const _took = get_hr_time() - _start;
-            const _stats = state.stats;
-
-            _stats.frames++;
-
-            if (_failed) {
-                // a failed frame carries a one second libusb timeout, counting it
-                // would hide how long the panel really takes to swallow a frame
-                _stats.failed++;
-            }
-            else {
-                _stats.ok++;
-                _stats.total += _took;
-                _stats.max = Math.max(_stats.max, _took);
-                _stats.min = _stats.min ? Math.min(_stats.min, _took) : _took;
-            }
+            record_job(state.stats.redraw, get_hr_time() - _start, _failed, REDRAW_PACKETS);
 
             state.last_redraw_done = get_hr_time();
 
@@ -103,9 +127,15 @@ function redraw_delay(state) {
     return _since >= state.redraw_cooldown ? 0 : state.redraw_cooldown - _since;
 }
 
-function start_lcd_update(handle, state, job, fulfill) {
+function start_lcd_update(handle, state, job, fulfill, tally) {
+
+    if (!tally) {
+        tally = { writes: 0, failed: 0, start: get_hr_time() };
+    }
 
     if (job && 'update' === job.type) {
+
+        tally.writes++;
     
         return lcd.refresh(handle, job.rect.x, job.rect.y, job.rect.width, job.rect.height, job.image).then(() => {
 
@@ -113,15 +143,25 @@ function start_lcd_update(handle, state, job, fulfill) {
 
         }, err => {          
 
+            tally.failed++;
+
             logger.error('lcd_thread: next_lcd_update hid error: ' + err + ' (write retries so far: ' + lcd.retry_count() + ')');
 
         }).finally(() => {
+
+            // only take the next job when it is another region of this same burst,
+            // shifting anything else off the queue would silently drop a frame
+            const _next = (state.queue.length && 'update' === state.queue[0].type) ? state.queue.shift() : null;
           
-            start_lcd_update(handle, state, state.queue.shift(), fulfill);
+            start_lcd_update(handle, state, _next, fulfill, tally);
         });
     }
 
-    return fulfill({ type: 'update', complete: true });
+    record_job(state.stats.update, get_hr_time() - tally.start, tally.failed, tally.writes);
+
+    report_stats(state);
+
+    return fulfill({ type: 'update', complete: true, failed: tally.failed, writes: tally.writes });
 }
 
 function start_lcd_heartbeat(handle, state, job, fulfill) {

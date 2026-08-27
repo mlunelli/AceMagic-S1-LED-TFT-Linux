@@ -84,6 +84,8 @@ function next_update_region(context, state, config, fulfill) {
 
     if (!state.changes.length) {
 
+        state.change_keys.clear();
+
         return fulfill();
     }
 
@@ -117,6 +119,21 @@ function start_update_screen(context, state, config, fulfill) {
     });
 }
 
+function push_change(state, rect) {
+
+    const _key = rect.x + ',' + rect.y + ',' + rect.width + ',' + rect.height;
+
+    // a widget can change several times before its regions make it to the panel,
+    // and on this device every duplicate region costs another usb packet
+    if (state.change_keys.has(_key)) {
+        return;
+    }
+
+    state.change_keys.add(_key);
+    state.changes.push(rect);
+    state.change_count++;
+}
+
 function clear_pending_screen_updates(state) {
 
     while (state.changes.length) {
@@ -124,6 +141,8 @@ function clear_pending_screen_updates(state) {
         state.changes.shift();
         state.change_count--;
     }
+
+    state.change_keys.clear();
 }
 
 function update_device_screen(context, state, config, theme) {
@@ -354,18 +373,15 @@ function next_draw_widgets(context, state, config, widgets, index, total, fulfil
 
                 if (changed) {
 
-                    // remember it even while the device is busy, otherwise a change
-                    // that lands during a transfer would never reach the screen
+                    // remember it even while the device is busy. the widget has already
+                    // moved its own last value on, so it will not report this change a
+                    // second time and dropping the region here would lose it for good
                     state.dirty = true;
 
-                    if (!state.drawing) {
-                
-                        calc_update_region(fix_rect_bounds(config, _widget_config.rect)).forEach(each => {
+                    calc_update_region(fix_rect_bounds(config, _widget_config.rect)).forEach(each => {
 
-                            state.changes.push(each);
-                            state.change_count++;
-                        });                    
-                    }
+                        push_change(state, each);
+                    });
                 }
 
                 next_draw_widgets(context, state, config, widgets, 1 + index, total, fulfill);
@@ -645,6 +661,7 @@ function main() {
                 drawing            : false,             // drawing in progress
                 dirty              : false,             // a widget changed since the last frame
                 changes            : [],                // screen update regions
+                change_keys        : new Set(),         // regions already queued, to avoid duplicates
                 change_count       : 0,                 // screen update count
 
                 output_canvas      : _output_canvas,
