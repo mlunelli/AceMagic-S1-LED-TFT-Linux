@@ -29,7 +29,7 @@ function start_lcd_redraw(handle, state, job) {
 
         }, err => {
 
-            logger.error('lcd_thread: start_lcd_redraw hid error: ' + err);
+            logger.error('lcd_thread: start_lcd_redraw hid error: ' + err + ' (write retries so far: ' + lcd.retry_count() + ')');
 
         }).finally(() => {
             
@@ -48,7 +48,7 @@ function start_lcd_update(handle, state, job, fulfill) {
 
         }, err => {          
 
-            logger.error('lcd_thread: next_lcd_update hid error: ' + err);
+            logger.error('lcd_thread: next_lcd_update hid error: ' + err + ' (write retries so far: ' + lcd.retry_count() + ')');
 
         }).finally(() => {
           
@@ -67,7 +67,7 @@ function start_lcd_heartbeat(handle, state, job, fulfill) {
 
     }, err => {
 
-        logger.error('lcd_thread: start_lcd_heartbeat hid error: ' + err);
+        logger.error('lcd_thread: start_lcd_heartbeat hid error: ' + err + ' (write retries so far: ' + lcd.retry_count() + ')');
 
     }).finally(() => {
         

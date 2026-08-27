@@ -25,6 +25,45 @@ const LCD_REDRAW_START    = 0xF0;
 const LCD_REDRAW_CONTINUE = 0xF1;
 const LCD_REDRAW_END      = 0xF2;
 
+const MAX_WRITE_RETRY     = 2;
+const RETRY_DELAY_MS      = 20;
+
+var _retry_count = 0;
+
+/*
+ * the panel nacks a write while it is still busy pushing the previous chunk to
+ * the lcd, and libusb then burns its full one second timeout before failing.
+ * every packet carries its own sequence number so sending the same one again
+ * lands in the same place. without this a single bad chunk aborts the rest of
+ * the frame and leaves that part of the screen showing stale pixels
+ */
+function write_with_retry(handle, buffer, attempt) {
+
+    return handle.write(buffer).catch(err => {
+
+        if (attempt >= MAX_WRITE_RETRY) {
+            return Promise.reject(err);
+        }
+
+        _retry_count++;
+
+        return new Promise(fulfill => setTimeout(fulfill, RETRY_DELAY_MS)).then(() => {
+
+            return write_with_retry(handle, buffer, 1 + attempt);
+        });
+    });
+}
+
+function write(handle, buffer) {
+
+    return write_with_retry(handle, buffer, 0);
+}
+
+function retry_count() {
+
+    return _retry_count;
+}
+
 
 function printBytesInHex(array) {
     var _hexString = "";
@@ -49,7 +88,7 @@ function set_orientation(handle, portrait) {
         //console.log('set orientation');
         //printBytesInHex(_buffer);
 
-        handle.write(_buffer).then(fulfill, reject);
+        write(handle, _buffer).then(fulfill, reject);
     });
 }
 
@@ -72,7 +111,7 @@ function heartbeat(handle) {
         //console.log('heartbeat');
         //printBytesInHex(_buffer);
 
-        handle.write(_buffer).then(fulfill, reject);
+        write(handle, _buffer).then(fulfill, reject);
     });
 }
 
@@ -113,7 +152,7 @@ function redraw_next(handle, header, image, buffer, index, fulfill, reject) {
 
         //printBytesInHex(buffer);
 
-        handle.write(buffer).then(() => {
+        write(handle, buffer).then(() => {
 
             redraw_next(handle, header, image, buffer, ++index, fulfill, reject);
 
@@ -170,7 +209,7 @@ function refresh(handle, x, y, width, height, image) {
         //console.log('lcd_refresh');
         //printBytesInHex(_buffer);
 
-        handle.write(_buffer).then(fulfill, reject);
+        write(handle, _buffer).then(fulfill, reject);
     });
 }
 
@@ -178,5 +217,6 @@ module.exports = {
     set_orientation,
     heartbeat,
     redraw,
-    refresh
+    refresh,
+    retry_count
 };
