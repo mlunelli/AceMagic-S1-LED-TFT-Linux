@@ -1,12 +1,12 @@
 {
    "orientation": "landscape",
-   "refresh": "redraw",
+   "refresh": "update",
    "screens": [
       {
          "id": 1,
          "name": "Stats",
          "background": "#000000",
-         "duration": 60000,
+         "duration": 600000,
          "led_config": {
             "theme": 4,
             "intensity": 1,
@@ -201,7 +201,19 @@
          "name": "Relax",
          "background": "#000000",
          "widgets": [],
-         "duration": 60000,
+         "duration": 5000,
+         "led_config": {
+            "theme": 4,
+            "intensity": 1,
+            "speed": 3
+         }
+      },
+	  {
+         "id": 3,
+         "name": "Relax2",
+         "background": "#ffffff",
+         "widgets": [],
+         "duration": 5000,
          "led_config": {
             "theme": 4,
             "intensity": 1,
