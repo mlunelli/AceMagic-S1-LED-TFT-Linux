@@ -34,6 +34,24 @@ EOF
 
 echo "Home Directory is $CURRENT_DIR"
 npm i
+
+# canvas, node-hid and serialport ship prebuilt binaries fetched by their install
+# scripts (prebuild-install / pkg-prebuilds-verify, falling back to node-gyp).
+# newer npm can hold those scripts back, and the panel would then fail at require
+# time with a service that restarts forever. fail here instead, while someone is
+# still looking at the screen
+echo "Verifying native modules..."
+if ! "$NODE_BIN" -e "require('canvas'); require('node-hid'); require('serialport');" 2>/dev/null; then
+    echo ""
+    echo "ERROR: a native module did not load."
+    echo "npm may be holding back the install scripts that fetch the prebuilt binaries."
+    echo "  review : npm install-scripts ls"
+    echo "  allow  : npm install-scripts approve canvas node-hid @serialport/bindings-cpp"
+    echo "then run ./install again"
+    exit 1
+fi
+echo "Native modules OK"
+
 (cd gui; npm i)
 echo "Building GUI"
 (cd gui; npm run build)
