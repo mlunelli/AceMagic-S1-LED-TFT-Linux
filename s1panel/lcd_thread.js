@@ -28,7 +28,7 @@ function new_bucket() {
 
 function new_stats() {
 
-    return { since: get_hr_time(), retries: lcd.retry_count(), redraw: new_bucket(), update: new_bucket() };
+    return { since: get_hr_time(), retries: lcd.retry_count(), heartbeats: 0, redraw: new_bucket(), update: new_bucket() };
 }
 
 function record_job(bucket, took, failed, writes) {
@@ -60,7 +60,7 @@ function report_stats(state) {
     const _stats = state.stats;
     const _elapsed = get_hr_time() - _stats.since;
 
-    if (_elapsed < STATS_INTERVAL || !(_stats.redraw.count + _stats.update.count)) {
+    if (_elapsed < STATS_INTERVAL || !(_stats.redraw.count + _stats.update.count + _stats.heartbeats)) {
         return;
     }
 
@@ -74,6 +74,7 @@ function report_stats(state) {
         _parts.push(describe('updates', _stats.update));
     }
 
+    _parts.push(_stats.heartbeats + ' heartbeats');
     _parts.push((lcd.retry_count() - _stats.retries) + ' write retries');
 
     logger.info('lcd_thread: in ' + Math.round(_elapsed / 1000) + 's: ' + _parts.join(' | '));
@@ -166,6 +167,8 @@ function start_lcd_update(handle, state, job, fulfill, tally) {
 
 function start_lcd_heartbeat(handle, state, job, fulfill) {
 
+    state.stats.heartbeats++;
+
     lcd.heartbeat(handle).then(() => {
 
         // intentionally blank
@@ -176,6 +179,8 @@ function start_lcd_heartbeat(handle, state, job, fulfill) {
 
     }).finally(() => {
         
+        report_stats(state);
+
         fulfill({ type: 'heartbeat', complete: false });
     });
 }
@@ -256,8 +261,11 @@ function refresh_device(handle, state) {
 
         const _last_activity = _now - state.last_activity;
         const _last_heartbeat = _now - state.last_heartbeat;
-        
-        if (_last_activity > state.refresh || _last_heartbeat > state.heartbeat) {
+
+        // the keep alive used to reuse state.refresh, which is really the cool down
+        // applied after a redraw. on a static screen that meant a clock sync every
+        // 1.6s for nothing, and the firmware slows down when fed too many of them
+        if (_last_activity > state.keepalive || _last_heartbeat > state.heartbeat) {
 
             _promise = with_delay(handle, state, { type: 'heartbeat' }, start_lcd_heartbeat);
         }
@@ -319,6 +327,7 @@ function message_handler(state, message) {
             state.refresh = message.refresh || state.refresh;
             state.heartbeat = message.heartbeat || state.heartbeat;
             state.redraw_cooldown = undefined !== message.redraw_cooldown ? message.redraw_cooldown : state.redraw_cooldown;
+            state.keepalive = message.keepalive || state.keepalive;
 
             if (undefined !== message.short_packets) {
                 lcd.set_short_packets(message.short_packets);
@@ -364,6 +373,7 @@ main({
     refresh            : threads.workerData.refresh,
     heartbeat          : threads.workerData.heartbeat,
     redraw_cooldown    : threads.workerData.redraw_cooldown || 0,
+    keepalive          : threads.workerData.keepalive || threads.workerData.refresh,
     short_packets      : threads.workerData.short_packets || false,
     last_heartbeat     : get_hr_time(),
     last_activity      : get_hr_time(),

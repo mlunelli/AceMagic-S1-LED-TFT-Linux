@@ -4,6 +4,7 @@
    "poll": 500,
    "refresh": 1600,
    "heartbeat": 60000,
+   "keepalive": 5000,
    "redraw_cooldown": 0,
    "short_packets": false,
    "debug_update": false,

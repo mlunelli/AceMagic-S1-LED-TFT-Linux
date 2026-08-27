@@ -50,7 +50,7 @@ function lcd_set_time(state) {
 
 function lcd_set_config(state, config) {
 
-    state.lcd_thread.postMessage({ type: 'config', poll: config.poll, refresh: config.refresh, heartbeat: config.heartbeat, redraw_cooldown: config.redraw_cooldown || 0, short_packets: config.short_packets || false });
+    state.lcd_thread.postMessage({ type: 'config', poll: config.poll, refresh: config.refresh, heartbeat: config.heartbeat, redraw_cooldown: config.redraw_cooldown || 0, short_packets: config.short_packets || false, keepalive: config.keepalive || 0 });
 }
 
 function load_config(filename) {
@@ -678,7 +678,7 @@ function main() {
                 wallpaper_image    : null,
 
                 led_thread         : new threads.Worker('./led_thread.js', { workerData: config.led_config }),
-                lcd_thread         : new threads.Worker('./lcd_thread.js', { workerData: { device: config.device, poll: config.poll, refresh: config.refresh, heartbeat: config.heartbeat, redraw_cooldown: config.redraw_cooldown || 0, short_packets: config.short_packets || false }}),  
+                lcd_thread         : new threads.Worker('./lcd_thread.js', { workerData: { device: config.device, poll: config.poll, refresh: config.refresh, heartbeat: config.heartbeat, redraw_cooldown: config.redraw_cooldown || 0, short_packets: config.short_packets || false, keepalive: config.keepalive || 0 }}),  
 
                 unsaved_changes    : false,
 
