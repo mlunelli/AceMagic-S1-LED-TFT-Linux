@@ -1104,7 +1104,10 @@ function upload_wallpaper(context, req, res) {
 
 function callback_wrapper(method, url, req, res, callback, type, context) {
 
-    const _request = (method === 'get' ? req.query : req.body);
+    // express 5 leaves req.body undefined when the request carries no body at all,
+    // where express 4 gave an empty object. a post from curl without a payload would
+    // otherwise blow up in the handler
+    const _request = (method === 'get' ? req.query : (req.body || {}));
 
     callback(context, _request).then(respone => {
 
