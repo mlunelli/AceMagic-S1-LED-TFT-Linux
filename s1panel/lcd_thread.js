@@ -13,15 +13,41 @@ const usb_hid     = node_hid.HIDAsync;
 
 const START_COOL_DOWN = 1000;
 const POLL_TIMEOUT = 10;
+const STATS_INTERVAL = 60000;
 
 function get_hr_time() {
 
     return Math.floor(Number(process.hrtime.bigint()) / 1000000);
 }
 
+function report_stats(state) {
+
+    const _stats = state.stats;
+    const _elapsed = get_hr_time() - _stats.since;
+
+    if (_elapsed < STATS_INTERVAL || !_stats.frames) {
+        return;
+    }
+
+    logger.info('lcd_thread: ' + _stats.frames + ' frames in ' + Math.round(_elapsed / 1000) + 's, '
+        + _stats.failed + ' failed, ' + (lcd.retry_count() - _stats.retries) + ' write retries, '
+        + 'good redraw took avg ' + (_stats.ok ? Math.round(_stats.total / _stats.ok) : 0) + 'ms'
+        + ' min ' + _stats.min + 'ms max ' + _stats.max + 'ms');
+
+    state.stats = new_stats();
+}
+
+function new_stats() {
+
+    return { since: get_hr_time(), frames: 0, ok: 0, failed: 0, total: 0, min: 0, max: 0, retries: lcd.retry_count() };
+}
+
 function start_lcd_redraw(handle, state, job) {
         
     return new Promise(fulfill => {
+
+        const _start = get_hr_time();
+        var _failed = false;
 
         lcd.redraw(handle, job.image).then(() => {
 
@@ -29,13 +55,52 @@ function start_lcd_redraw(handle, state, job) {
 
         }, err => {
 
+            _failed = true;
+
             logger.error('lcd_thread: start_lcd_redraw hid error: ' + err + ' (write retries so far: ' + lcd.retry_count() + ')');
 
         }).finally(() => {
             
+            const _took = get_hr_time() - _start;
+            const _stats = state.stats;
+
+            _stats.frames++;
+
+            if (_failed) {
+                // a failed frame carries a one second libusb timeout, counting it
+                // would hide how long the panel really takes to swallow a frame
+                _stats.failed++;
+            }
+            else {
+                _stats.ok++;
+                _stats.total += _took;
+                _stats.max = Math.max(_stats.max, _took);
+                _stats.min = _stats.min ? Math.min(_stats.min, _took) : _took;
+            }
+
+            state.last_redraw_done = get_hr_time();
+
+            report_stats(state);
+
             fulfill({ type: 'redraw', complete: true });
         });
     });
+}
+
+/*
+ * the panel is still painting the lcd when the next full frame arrives and stops
+ * reading its endpoint, which costs a full libusb timeout and drops the rest of
+ * the frame. redraw was the only job type not going through a cool down
+ */
+function redraw_delay(state) {
+
+    if (!state.redraw_cooldown) {
+        return 0;
+    }
+
+    const _since = get_hr_time() - state.last_redraw_done;
+
+    return _since >= state.redraw_cooldown ? 0 : state.redraw_cooldown - _since;
 }
 
 function start_lcd_update(handle, state, job, fulfill) {
@@ -123,7 +188,15 @@ function refresh_device(handle, state) {
         switch (_job.type) {
 
             case 'redraw':
-                _promise = start_lcd_redraw(handle, state, _job);
+                {
+                    const _delay = redraw_delay(state);
+
+                    _promise = _delay ? new Promise(fulfill => {
+
+                        setTimeout(() => start_lcd_redraw(handle, state, _job).then(fulfill), _delay);
+
+                    }) : start_lcd_redraw(handle, state, _job);
+                }
                 break;
 
             case 'update':   
@@ -205,6 +278,7 @@ function message_handler(state, message) {
             state.poll = message.poll || state.poll;
             state.refresh = message.refresh || state.refresh;
             state.heartbeat = message.heartbeat || state.heartbeat;
+            state.redraw_cooldown = undefined !== message.redraw_cooldown ? message.redraw_cooldown : state.redraw_cooldown;
             break;
 
         default:
@@ -243,9 +317,12 @@ main({
     poll               : threads.workerData.poll,
     refresh            : threads.workerData.refresh,
     heartbeat          : threads.workerData.heartbeat,
+    redraw_cooldown    : threads.workerData.redraw_cooldown || 0,
     last_heartbeat     : get_hr_time(),
     last_activity      : get_hr_time(),
+    last_redraw_done   : 0,
     queue              : [],
-    last_type          : 'idle'
+    last_type          : 'idle',
+    stats              : new_stats()
 });
 

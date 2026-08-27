@@ -26,7 +26,7 @@ const LCD_REDRAW_CONTINUE = 0xF1;
 const LCD_REDRAW_END      = 0xF2;
 
 const MAX_WRITE_RETRY     = 2;
-const RETRY_DELAY_MS      = 20;
+const RETRY_DELAY_MS      = 100;
 
 var _retry_count = 0;
 
@@ -47,7 +47,11 @@ function write_with_retry(handle, buffer, attempt) {
 
         _retry_count++;
 
-        return new Promise(fulfill => setTimeout(fulfill, RETRY_DELAY_MS)).then(() => {
+        // back off, a nacked write has already cost a full libusb timeout so the
+        // panel is clearly stuck on something longer than a few milliseconds
+        const _delay = RETRY_DELAY_MS * (1 + attempt);
+
+        return new Promise(fulfill => setTimeout(fulfill, _delay)).then(() => {
 
             return write_with_retry(handle, buffer, 1 + attempt);
         });
