@@ -5,6 +5,7 @@
    "refresh": 1600,
    "heartbeat": 60000,
    "redraw_cooldown": 0,
+   "short_packets": false,
    "debug_update": false,
    "theme_list": [
       {

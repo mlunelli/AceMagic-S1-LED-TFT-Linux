@@ -29,6 +29,19 @@ const MAX_WRITE_RETRY     = 2;
 const RETRY_DELAY_MS      = 100;
 
 var _retry_count = 0;
+var _short_packets = false;
+
+/*
+ * a partial update only fills part of the 4096 byte payload but the whole report
+ * is still put on the wire, and on this device time is proportional to bytes:
+ * 64ms per full packet, measured. sending only the bytes that carry pixels is
+ * worth about 45% on a typical tile, as long as the firmware accepts a short
+ * report, which it should since the header already carries width and height
+ */
+function set_short_packets(enabled) {
+
+    _short_packets = enabled ? true : false;
+}
 
 /*
  * the panel nacks a write while it is still busy pushing the previous chunk to
@@ -213,7 +226,9 @@ function refresh(handle, x, y, width, height, image) {
         //console.log('lcd_refresh');
         //printBytesInHex(_buffer);
 
-        write(handle, _buffer).then(fulfill, reject);
+        const _packet = _short_packets ? _buffer.subarray(0, REPORT_SIZE + HEADER_SIZE + (width * height * 2)) : _buffer;
+
+        write(handle, _packet).then(fulfill, reject);
     });
 }
 
@@ -222,5 +237,6 @@ module.exports = {
     heartbeat,
     redraw,
     refresh,
-    retry_count
+    retry_count,
+    set_short_packets
 };

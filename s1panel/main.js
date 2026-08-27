@@ -50,7 +50,7 @@ function lcd_set_time(state) {
 
 function lcd_set_config(state, config) {
 
-    state.lcd_thread.postMessage({ type: 'config', poll: config.poll, refresh: config.refresh, heartbeat: config.heartbeat, redraw_cooldown: config.redraw_cooldown || 0 });
+    state.lcd_thread.postMessage({ type: 'config', poll: config.poll, refresh: config.refresh, heartbeat: config.heartbeat, redraw_cooldown: config.redraw_cooldown || 0, short_packets: config.short_packets || false });
 }
 
 function load_config(filename) {
@@ -277,37 +277,35 @@ function fetch_screen(state, config, theme) {
     return _screen;
 }
 
-function calc_update_region(rect) {
+/*
+ * the firmware takes any update region up to 254 wide and 170 high as long as the
+ * pixels fit the 4096 byte payload (see the update 0xA2 section of the readme).
+ * square tiles waste most of that payload: a 100x100 gauge cut into 34x34 squares
+ * is 9 packets at 56% waste, cut into 100x20 strips it is 5 full ones. on this
+ * device every packet costs the same 64ms no matter how full it is
+ */
+function calc_update_region(rect, max_width) {
 
-    const _max_size = 2048;   // 4096 buffer limit  
-    const _totalPixels = rect.width * rect.height; 
+    const _max_pixels = 2048;   // 4096 byte payload, 2 bytes per pixel
+    const _max_width = max_width || 254;
+
     const _chunks = [];
 
-    if (_totalPixels > _max_size) {
+    for (var _x = rect.x; _x < rect.x + rect.width; ) {
 
-        const _rows = Math.ceil(rect.height / Math.sqrt(_max_size));
-        const _cols = Math.ceil(rect.width / Math.sqrt(_max_size));
-        const _area_width = Math.ceil(rect.width / _cols);
-        const _area_height = Math.ceil(rect.height / _rows);
-        
-        for (let i = 0; i < _rows; i++) {
+        const _width = Math.min(_max_width, rect.x + rect.width - _x);
+        const _rows = Math.max(1, Math.floor(_max_pixels / _width));
 
-            for (let j = 0; j < _cols; j++) {
+        for (var _y = rect.y; _y < rect.y + rect.height; ) {
 
-                const _areaX = rect.x + j * _area_width;
-                const _areaY = rect.y + i * _area_height;
+            const _height = Math.min(_rows, rect.y + rect.height - _y);
 
-                _chunks.push({
-                    x: _areaX,
-                    y: _areaY,
-                    width: Math.min(_area_width, rect.width - j * _area_width),
-                    height: Math.min(_area_height, rect.height - i * _area_height)
-                });
-            }
-        }     
-    }
-    else {
-        _chunks.push(rect);
+            _chunks.push({ x: _x, y: _y, width: _width, height: _height });
+
+            _y += _height;
+        }
+
+        _x += _width;
     }
 
     return _chunks;
@@ -378,7 +376,7 @@ function next_draw_widgets(context, state, config, widgets, index, total, fulfil
                     // second time and dropping the region here would lose it for good
                     state.dirty = true;
 
-                    calc_update_region(fix_rect_bounds(config, _widget_config.rect)).forEach(each => {
+                    calc_update_region(fix_rect_bounds(config, _widget_config.rect), config.portrait ? 170 : 254).forEach(each => {
 
                         push_change(state, each);
                     });
@@ -680,7 +678,7 @@ function main() {
                 wallpaper_image    : null,
 
                 led_thread         : new threads.Worker('./led_thread.js', { workerData: config.led_config }),
-                lcd_thread         : new threads.Worker('./lcd_thread.js', { workerData: { device: config.device, poll: config.poll, refresh: config.refresh, heartbeat: config.heartbeat, redraw_cooldown: config.redraw_cooldown || 0 }}),  
+                lcd_thread         : new threads.Worker('./lcd_thread.js', { workerData: { device: config.device, poll: config.poll, refresh: config.refresh, heartbeat: config.heartbeat, redraw_cooldown: config.redraw_cooldown || 0, short_packets: config.short_packets || false }}),  
 
                 unsaved_changes    : false,
 

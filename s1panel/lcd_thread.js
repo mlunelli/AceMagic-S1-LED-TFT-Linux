@@ -319,6 +319,10 @@ function message_handler(state, message) {
             state.refresh = message.refresh || state.refresh;
             state.heartbeat = message.heartbeat || state.heartbeat;
             state.redraw_cooldown = undefined !== message.redraw_cooldown ? message.redraw_cooldown : state.redraw_cooldown;
+
+            if (undefined !== message.short_packets) {
+                lcd.set_short_packets(message.short_packets);
+            }
             break;
 
         default:
@@ -330,6 +334,8 @@ function message_handler(state, message) {
 function main(state) {
 
     logger.info('lcd_thread: started...');
+
+    lcd.set_short_packets(state.short_packets);
 
     threads.parentPort.on('message', message => {
         message_handler(state, message);
@@ -358,6 +364,7 @@ main({
     refresh            : threads.workerData.refresh,
     heartbeat          : threads.workerData.heartbeat,
     redraw_cooldown    : threads.workerData.redraw_cooldown || 0,
+    short_packets      : threads.workerData.short_packets || false,
     last_heartbeat     : get_hr_time(),
     last_activity      : get_hr_time(),
     last_redraw_done   : 0,
