@@ -71,9 +71,12 @@ function write_with_retry(handle, buffer, attempt) {
     });
 }
 
-function write(handle, buffer) {
+function write(handle, buffer, retries) {
 
-    return write_with_retry(handle, buffer, 0);
+    // a caller can ask for no retry at all: the heartbeat must never sit silent
+    // for longer than the firmware watchdog, and retrying it is pointless anyway
+    // since the next one is due in well under a second
+    return write_with_retry(handle, buffer, undefined === retries ? 0 : MAX_WRITE_RETRY - retries);
 }
 
 function retry_count() {
@@ -128,7 +131,7 @@ function heartbeat(handle) {
         //console.log('heartbeat');
         //printBytesInHex(_buffer);
 
-        write(handle, _buffer).then(fulfill, reject);
+        write(handle, _buffer, 0).then(fulfill, reject);
     });
 }
 

@@ -28,7 +28,7 @@ function new_bucket() {
 
 function new_stats() {
 
-    return { since: get_hr_time(), retries: lcd.retry_count(), heartbeats: 0, redraw: new_bucket(), update: new_bucket() };
+    return { since: get_hr_time(), retries: lcd.retry_count(), heartbeats: 0, heartbeats_failed: 0, redraw: new_bucket(), update: new_bucket() };
 }
 
 function record_job(bucket, took, failed, writes) {
@@ -74,7 +74,7 @@ function report_stats(state) {
         _parts.push(describe('updates', _stats.update));
     }
 
-    _parts.push(_stats.heartbeats + ' heartbeats');
+    _parts.push(_stats.heartbeats + ' heartbeats (' + _stats.heartbeats_failed + ' failed)');
     _parts.push((lcd.retry_count() - _stats.retries) + ' write retries');
 
     logger.info('lcd_thread: in ' + Math.round(_elapsed / 1000) + 's: ' + _parts.join(' | '));
@@ -169,11 +169,16 @@ function start_lcd_heartbeat(handle, state, job, fulfill) {
 
     state.stats.heartbeats++;
 
+    var _failed = false;
+
     lcd.heartbeat(handle).then(() => {
 
         // intentionally blank
 
     }, err => {
+
+        _failed = true;
+        state.stats.heartbeats_failed++;
 
         logger.error('lcd_thread: start_lcd_heartbeat hid error: ' + err + ' (write retries so far: ' + lcd.retry_count() + ')');
 
@@ -181,7 +186,7 @@ function start_lcd_heartbeat(handle, state, job, fulfill) {
         
         report_stats(state);
 
-        fulfill({ type: 'heartbeat', complete: false });
+        fulfill({ type: 'heartbeat', complete: false, failed: _failed });
     });
 }
 
@@ -263,8 +268,9 @@ function refresh_device(handle, state) {
         const _last_heartbeat = _now - state.last_heartbeat;
 
         // the keep alive used to reuse state.refresh, which is really the cool down
-        // applied after a redraw. on a static screen that meant a clock sync every
-        // 1.6s for nothing, and the firmware slows down when fed too many of them
+        // applied after a redraw. they are separate now, but measured on the real
+        // panel the firmware drops to its disconnect screen after roughly two
+        // seconds of silence, so this can never be relaxed past that
         if (_last_activity > state.keepalive || _last_heartbeat > state.heartbeat) {
 
             _promise = with_delay(handle, state, { type: 'heartbeat' }, start_lcd_heartbeat);
@@ -277,9 +283,13 @@ function refresh_device(handle, state) {
             
             const _took = get_hr_time() - _now;
 
+            const _failed_heartbeat = ('heartbeat' === rc.type && rc.failed) ? true : false;
+
             if ('heartbeat' === rc.type) {
 
-                state.last_heartbeat = get_hr_time(); 
+                if (!rc.failed) {
+                    state.last_heartbeat = get_hr_time(); 
+                }
             }
             else {
 
@@ -288,7 +298,14 @@ function refresh_device(handle, state) {
             }
 
             state.last_type = rc.type;
-            state.last_activity = get_hr_time();
+
+            // a failed heartbeat leaves last_activity where it was, so the next loop
+            // pass sends another one right away instead of waiting out the keep alive.
+            // the firmware drops to its disconnect screen after about two seconds of
+            // silence and a timed out write has already eaten one of them
+            if (!_failed_heartbeat) {
+                state.last_activity = get_hr_time();
+            }
         }
 
     }, err => {
