@@ -1,6 +1,17 @@
 #!/bin/bash
 CURRENT_DIR=$(pwd)
 
+# do not hard code /usr/bin/node, a node upgrade (nvm, a tarball, a distro change)
+# moves the binary and the service then dies with status=203/EXEC on every restart
+NODE_BIN=$(command -v node)
+
+if [ -z "$NODE_BIN" ]; then
+    echo "node was not found in PATH, install it first"
+    exit 1
+fi
+
+echo "Using node at $NODE_BIN ($($NODE_BIN --version))"
+
 make_service()
 {
 cat <<EOF
@@ -8,7 +19,7 @@ cat <<EOF
 \rDescription="S1 Panel"
 \r
 \r[Service]
-\rExecStart=/usr/bin/node main.js
+\rExecStart=$NODE_BIN main.js
 \rWorkingDirectory=$CURRENT_DIR
 \rRestart=always
 \rRestartSec=10
