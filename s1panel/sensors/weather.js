@@ -444,7 +444,7 @@ function settings() {
             { name: 'name', type: 'string', value: 'nyc' },
             { name: 'country', type: 'string', value: 'US' },
             { name: 'forecast', type: 'number', value: 0, min: 0, max: 7 },
-            { name: 'imperial', type: 'boolean', value: true }
+            { name: 'imperial', type: 'boolean', value: false }     // metric unless asked for
         ]
     };
 }
