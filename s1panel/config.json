@@ -41,6 +41,8 @@
       {
          "module": "sensors/nvme_temp.js",
          "config": {
+            "name": "nvme0",
+            "device": "nvme0",
             "max_points": 300,
             "fahrenheit": false
          }

@@ -9,15 +9,7 @@ const path = require('path');
 const logger = require('../logger');
 
 const HWMON_PATH = '/sys/class/hwmon';
-
-var _max_points = 10;
-var _fahrenheit = false;
-var _last_sampled = 0;
-var _history = [];
-var _max_temp = 0;
-var _min_temp = 0;
-var _source = null;
-var _fault = false;
+const DEFAULT_DEVICE = 'nvme0';
 
 function read_file(filename) {
 
@@ -34,18 +26,19 @@ function read_file(filename) {
     });
 }
 
-function to_unit(millidegrees) {
+function to_unit(_private, millidegrees) {
 
     const _celsius = Number(millidegrees) / 1000;
 
-    return _fahrenheit ? _celsius * 9 / 5 + 32 : _celsius;
+    return _private.fahrenheit ? _celsius * 9 / 5 + 32 : _celsius;
 }
 
 /*
- * hwmon numbering is not stable across boots, so look the chip up by name.
+ * hwmon numbering is not stable across boots and every drive is called nvme,
+ * so the chip is found through its device link, which points at nvme0, nvme1...
  * temp1 is the composite reading the drive itself reports as its temperature
  */
-function find_source() {
+function find_source(device) {
 
     return new Promise(fulfill => {
 
@@ -59,11 +52,17 @@ function find_source() {
 
                 const _dir = path.join(HWMON_PATH, each);
 
-                return read_file(path.join(_dir, 'name')).then(name => ({ name, dir: _dir }), () => ({}));
+                return new Promise(done => {
+
+                    fs.realpath(path.join(_dir, 'device'), (err2, target) => {
+
+                        done({ dir: _dir, device: err2 ? null : path.basename(target) });
+                    });
+                });
 
             })).then(chips => {
 
-                const _chip = chips.find(each => 'nvme' === each.name);
+                const _chip = chips.find(each => device === each.device);
 
                 fulfill(_chip ? _chip.dir : null);
             });
@@ -71,50 +70,50 @@ function find_source() {
     });
 }
 
-function init_range(dir) {
+function init_range(_private, dir) {
 
-    if (!_max_temp) {
+    if (!_private.max_temp) {
 
         // the drive reports where it starts throttling (max) and where it shuts
         // down (crit), the gauge is more useful topping out at the first one
         read_file(path.join(dir, 'temp1_max')).catch(() => read_file(path.join(dir, 'temp1_crit'))).then(value => {
 
-            _max_temp = Math.round(to_unit(value));
+            _private.max_temp = Math.round(to_unit(_private, value));
 
         }, () => {
 
-            _max_temp = _fahrenheit ? 185 : 85;
+            _private.max_temp = _private.fahrenheit ? 185 : 85;
 
         }).finally(() => {
 
-            logger.info('initialize: nvme temp max set to ' + _max_temp);
+            logger.info('initialize: nvme temp ' + _private.device + ' max set to ' + _private.max_temp);
         });
     }
 
-    if (!_min_temp) {
+    if (!_private.min_temp) {
 
         // temp1_min on these drives is a meaningless -0.15, use a room temperature floor
-        _min_temp = _fahrenheit ? 68 : 20;
+        _private.min_temp = _private.fahrenheit ? 68 : 20;
 
-        logger.info('initialize: nvme temp min set to ' + _min_temp);
+        logger.info('initialize: nvme temp ' + _private.device + ' min set to ' + _private.min_temp);
     }
 }
 
-function nvme_temp() {
+function nvme_temp(_private) {
 
-    var _source_promise = Promise.resolve(_source);
+    var _source_promise = Promise.resolve(_private.source);
 
-    if (!_source) {
+    if (!_private.source) {
 
-        _source_promise = find_source().then(dir => {
+        _source_promise = find_source(_private.device).then(dir => {
 
             if (dir) {
 
-                _source = dir;
+                _private.source = dir;
 
-                logger.info('initialize: nvme temp is reading ' + dir);
+                logger.info('initialize: nvme temp ' + _private.device + ' is reading ' + dir);
 
-                init_range(dir);
+                init_range(_private, dir);
             }
 
             return dir;
@@ -124,48 +123,52 @@ function nvme_temp() {
     return _source_promise.then(dir => {
 
         if (!dir) {
-            return Promise.reject('no nvme hwmon chip found');
+            return Promise.reject('no hwmon chip found for ' + _private.device);
         }
 
         return read_file(path.join(dir, 'temp1_input'));
 
     }).then(value => {
 
-        return to_unit(value);
+        return to_unit(_private, value);
 
     }, err => {
 
-        if (!_fault) {
+        if (!_private.fault) {
 
             logger.error('nvme_temp: ' + err);
-            _fault = true;
+            _private.fault = true;
         }
 
         return null;
     });
 }
 
-function sample(rate, format) {
+function sample(rate, format, config) {
 
     return new Promise(fulfill => {
 
-        const _diff = Math.floor(Number(process.hrtime.bigint()) / 1000000) - _last_sampled;
+        const _private = config._private;
+
+        const _diff = Math.floor(Number(process.hrtime.bigint()) / 1000000) - _private.last_sampled;
         var _dirty = false;
         var _temp_promise = Promise.resolve();
 
-        if (!_last_sampled || _diff > rate) {
+        if (!_private.last_sampled || _diff > rate) {
 
-            _last_sampled = Math.floor(Number(process.hrtime.bigint()) / 1000000);
+            _private.last_sampled = Math.floor(Number(process.hrtime.bigint()) / 1000000);
 
-            _temp_promise = nvme_temp();
+            _temp_promise = nvme_temp(_private);
             _dirty = true;
         }
 
         _temp_promise.then(value => {
 
+            const _history = _private.history;
+
             if (!_history.length) {
 
-                for (var i = 0; i < _max_points; i++) {
+                for (var i = 0; i < _private.max_points; i++) {
                     _history.push(0);
                 }
             }
@@ -187,30 +190,43 @@ function sample(rate, format) {
                         return _history.join();
 
                     case '2':
-                        return _fahrenheit ? 'F' : 'C';
+                        return _private.fahrenheit ? 'F' : 'C';
+
+                    case '3':   // device
+                        return _private.device;
 
                     default:
                         return 'null';
                 }
             });
 
-            fulfill({ value: _output, min: _min_temp, max: _max_temp });
+            fulfill({ value: _output, min: _private.min_temp, max: _private.max_temp });
         });
     });
 }
 
 function init(config) {
 
-    if (config) {
-        _max_points = config.max_points || 10;
-        _fahrenheit = config.fahrenheit || false;
-        _max_temp = config.max_temp || 0;
-        _min_temp = config.min_temp || 0;
-    }
+    const _device = config?.device || DEFAULT_DEVICE;
 
-    logger.info('initialize: nvme temp max points are set to ' + _max_points);
+    const _private = {
+        name: config?.name || _device,
+        device: _device,
+        max_points: config?.max_points || 10,
+        fahrenheit: config?.fahrenheit || false,
+        max_temp: config?.max_temp || 0,
+        min_temp: config?.min_temp || 0,
+        last_sampled: 0,
+        history: [],
+        source: null,
+        fault: false
+    };
 
-    return 'nvme_temp';
+    logger.info('initialize: nvme temp for ' + _private.device + ', max points are set to ' + _private.max_points);
+
+    config._private = _private;
+
+    return 'nvme_temp_' + _private.name;
 }
 
 function stop() {
@@ -224,12 +240,14 @@ function settings() {
         name: 'nvme_temp',
         description: 'nvme drive temp monitor',
         icon: 'pi-server',
-        multiple: false,
-        ident: [],
+        multiple: true,
+        ident: [ 'name', 'device' ],    // which fields will change the identity of the sensor
         fields: [
+            { name: 'name', type: 'string', value: 'nvme0' },
+            { name: 'device', type: 'string', value: 'nvme0' },    // as listed in /sys/class/nvme
             { name: 'max_points', type: 'number', value: 300 },
             { name: 'fahrenheit', type: 'boolean', value: false },
-            { name: 'max_temp', type: 'number', value: 0 },     // 0 picks the limit the drive reports
+            { name: 'max_temp', type: 'number', value: 0 },        // 0 picks the limit the drive reports
             { name: 'min_temp', type: 'number', value: 0 },
         ]
     };
