@@ -319,6 +319,12 @@ function fetch_screen(state, config, theme) {
     // the new screen in full and the old one stays behind everywhere but the widgets
     const _old_index = undefined !== state.lcd_screen_index ? state.lcd_screen_index : state.screen_index;
 
+    // a jump from the api lands here with the clock of the screen it left, which
+    // would make the new one look expired right away and skip it. start it fresh
+    if (_old_index !== state.screen_index) {
+        state.screen_start = get_hr_time();
+    }
+
     var _screen = theme.screens[state.screen_index];
 
     // a screen that dropped out of the rotation while on the panel, a show_when

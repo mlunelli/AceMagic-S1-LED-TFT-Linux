@@ -6,7 +6,7 @@
          "id": 1,
          "name": "Stats",
          "background": "#000000",
-         "duration": 600000,
+         "duration": 60000,
          "led_config": {
             "theme": 4,
             "intensity": 1,
@@ -198,30 +198,281 @@
       },
       {
          "id": 2,
-         "name": "Relax",
+         "name": "Sistema",
          "background": "#000000",
-         "widgets": [],
-         "duration": 5000,
+         "duration": 60000,
          "led_config": {
             "theme": 4,
             "intensity": 1,
             "speed": 3
-         }
-      },
-	  {
-         "id": 3,
-         "name": "Relax2",
-         "background": "#ffffff",
-         "widgets": [],
-         "duration": 5000,
-         "led_config": {
-            "theme": 4,
-            "intensity": 1,
-            "speed": 3
-         }
+         },
+         "widgets": [
+            {
+               "id": 1,
+               "group": 1,
+               "name": "doughnut_chart",
+               "used": "#00e600",
+               "free": "#4d4d4d",
+               "rect": {
+                  "x": 5,
+                  "y": 0,
+                  "width": 100,
+                  "height": 100
+               },
+               "sensor": true,
+               "value": "gpu",
+               "format": "{0}",
+               "refresh": 1000,
+               "debug_frame": false
+            },
+            {
+               "id": 2,
+               "group": 1,
+               "name": "text",
+               "font": "bold 18px Arial",
+               "color": "#878787",
+               "align": "center",
+               "rect": {
+                  "x": 20,
+                  "y": 38,
+                  "width": 70,
+                  "height": 24
+               },
+               "sensor": false,
+               "value": "GPU",
+               "refresh": 0,
+               "debug_frame": false
+            },
+            {
+               "id": 3,
+               "group": 1,
+               "name": "text",
+               "font": "17px Arial",
+               "color": "#878787",
+               "align": "center",
+               "rect": {
+                  "x": 30,
+                  "y": 81,
+                  "width": 50,
+                  "height": 24
+               },
+               "sensor": true,
+               "value": "gpu",
+               "format": "{0}%",
+               "refresh": 1000,
+               "debug_frame": false
+            },
+            {
+               "id": 4,
+               "group": 2,
+               "name": "doughnut_chart",
+               "used": "#00e600",
+               "free": "#4d4d4d",
+               "rect": {
+                  "x": 110,
+                  "y": 0,
+                  "width": 100,
+                  "height": 100
+               },
+               "sensor": true,
+               "value": "nvme_temp_nvme0",
+               "format": "{0}",
+               "refresh": 2000,
+               "debug_frame": false
+            },
+            {
+               "id": 5,
+               "group": 2,
+               "name": "text",
+               "font": "bold 18px Arial",
+               "color": "#878787",
+               "align": "center",
+               "rect": {
+                  "x": 125,
+                  "y": 38,
+                  "width": 70,
+                  "height": 24
+               },
+               "sensor": false,
+               "value": "NVMe",
+               "refresh": 0,
+               "debug_frame": false
+            },
+            {
+               "id": 6,
+               "group": 2,
+               "name": "text",
+               "font": "17px Arial",
+               "color": "#878787",
+               "align": "center",
+               "rect": {
+                  "x": 135,
+                  "y": 81,
+                  "width": 50,
+                  "height": 24
+               },
+               "sensor": true,
+               "value": "nvme_temp_nvme0",
+               "refresh": 2000,
+               "debug_frame": false,
+               "format": "{0} {2}"
+            },
+            {
+               "id": 7,
+               "group": 3,
+               "name": "doughnut_chart",
+               "used": "#00e600",
+               "free": "#4d4d4d",
+               "rect": {
+                  "x": 215,
+                  "y": 0,
+                  "width": 100,
+                  "height": 100
+               },
+               "sensor": true,
+               "value": "memory",
+               "format": "{2}",
+               "refresh": 2000,
+               "debug_frame": false
+            },
+            {
+               "id": 8,
+               "group": 3,
+               "name": "text",
+               "font": "bold 18px Arial",
+               "color": "#878787",
+               "align": "center",
+               "rect": {
+                  "x": 235,
+                  "y": 38,
+                  "width": 60,
+                  "height": 24
+               },
+               "sensor": false,
+               "value": "RAM",
+               "refresh": 0,
+               "debug_frame": false
+            },
+            {
+               "id": 9,
+               "group": 3,
+               "name": "text",
+               "font": "15px Arial",
+               "color": "#878787",
+               "align": "center",
+               "rect": {
+                  "x": 225,
+                  "y": 81,
+                  "width": 80,
+                  "height": 24
+               },
+               "sensor": true,
+               "value": "memory",
+               "refresh": 2000,
+               "debug_frame": false,
+               "format": "{14}"
+            },
+            {
+               "id": 10,
+               "group": 4,
+               "name": "text",
+               "font": "13px Arial",
+               "color": "#878787",
+               "align": "left",
+               "rect": {
+                  "x": 5,
+                  "y": 104,
+                  "width": 92,
+                  "height": 16
+               },
+               "sensor": true,
+               "value": "gpu",
+               "format": "video {2}%",
+               "refresh": 1000,
+               "debug_frame": false
+            },
+            {
+               "id": 11,
+               "group": 4,
+               "name": "sparkline",
+               "line": "#00e600",
+               "fill": "#0a4d0a",
+               "line_width": 2,
+               "points": 60,
+               "scale": "sensor",
+               "rect": {
+                  "x": 100,
+                  "y": 106,
+                  "width": 215,
+                  "height": 28
+               },
+               "sensor": true,
+               "value": "gpu",
+               "format": "{8}",
+               "refresh": 3000,
+               "debug_frame": false
+            },
+            {
+               "id": 12,
+               "group": 5,
+               "name": "text",
+               "font": "15px Arial",
+               "color": "#878787",
+               "align": "left",
+               "rect": {
+                  "x": 5,
+                  "y": 145,
+                  "width": 215,
+                  "height": 22
+               },
+               "sensor": true,
+               "value": "network_enp2s0",
+               "refresh": 2000,
+               "debug_frame": false,
+               "format": "↓ {15}  ↑ {16}"
+            },
+            {
+               "id": 13,
+               "group": 5,
+               "name": "text",
+               "font": "15px Arial",
+               "color": "#878787",
+               "align": "right",
+               "rect": {
+                  "x": 220,
+                  "y": 145,
+                  "width": 95,
+                  "height": 22
+               },
+               "sensor": true,
+               "value": "space_root",
+               "refresh": 10000,
+               "debug_frame": false,
+               "format": "{10}/{11} GB"
+            },
+            {
+               "id": 14,
+               "group": 4,
+               "name": "text",
+               "font": "13px Arial",
+               "color": "#878787",
+               "align": "left",
+               "rect": {
+                  "x": 5,
+                  "y": 120,
+                  "width": 92,
+                  "height": 16
+               },
+               "sensor": true,
+               "value": "gpu",
+               "format": "{5} MHz",
+               "refresh": 1000,
+               "debug_frame": false
+            }
+         ]
       },
       {
-         "id": 4,
+         "id": 3,
          "name": "In riproduzione",
          "background": "#000000",
          "duration": 30000,
@@ -387,6 +638,30 @@
             }
          ],
          "show_when": "kodi"
+      },
+      {
+         "id": 4,
+         "name": "Relax",
+         "background": "#000000",
+         "widgets": [],
+         "duration": 3000,
+         "led_config": {
+            "theme": 4,
+            "intensity": 1,
+            "speed": 3
+         }
+      },
+      {
+         "id": 5,
+         "name": "Relax2",
+         "background": "#ffffff",
+         "widgets": [],
+         "duration": 3000,
+         "led_config": {
+            "theme": 4,
+            "intensity": 1,
+            "speed": 3
+         }
       }
    ]
 }
