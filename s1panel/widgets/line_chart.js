@@ -56,7 +56,7 @@ function draw(context, value, min, max, config) {
 
         const _private = get_private(config);
         const _rect = config.rect;
-        const _data = value.split(',');
+        const _data = String(value).split(',');
         var _has_changed = false;
         const _points = new Array(config.points);
         const _labels = new Array(config.points);
@@ -68,12 +68,14 @@ function draw(context, value, min, max, config) {
             _points[_count] = _data[i]; // y axis
             _labels[_count] = _count;   // x axis
 
+            // last_value is kept as the split array, indexing the raw string would
+            // compare single characters and report changes almost at random
             if (!_has_changed) {
 
                 if (!_private.last_value) {
                     _has_changed = true;
-                } 
-                else if (_data[i] != _private.last_value[i]) {
+                }
+                else if (_data[i] !== _private.last_value[i]) {
                     _has_changed = true;
                 }
             }
@@ -154,16 +156,14 @@ function draw(context, value, min, max, config) {
 
             if (_has_changed) {
 
-                _private.last_value = value;
+                _private.last_value = _data;
             }
 
         }, () => {
 
+            // the clip is restored in finally, restoring here too would pop a
+            // state some other widget saved
             logger.error('line chart failed to draw');
-
-            // without this the clip stays on the context and every widget
-            // drawn after this one gets clipped away
-            context.restore();
 
         }).finally(() => {
 
