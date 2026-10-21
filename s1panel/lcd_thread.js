@@ -107,7 +107,7 @@ function start_lcd_redraw(handle, state, job) {
 
             report_stats(state);
 
-            fulfill({ type: 'redraw', complete: true });
+            fulfill({ type: 'redraw', complete: true, failed: _failed });
         });
     });
 }
@@ -294,7 +294,7 @@ function refresh_device(handle, state) {
             else {
 
                 // upcall we're ready to receive next command...
-                threads.parentPort.postMessage({ type: rc.type, complete: rc.complete });
+                threads.parentPort.postMessage({ type: rc.type, complete: rc.complete, failed: rc.failed ? true : false });
             }
 
             state.last_type = rc.type;

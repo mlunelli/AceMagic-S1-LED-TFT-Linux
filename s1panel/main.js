@@ -166,12 +166,32 @@ function update_device_screen(context, state, config, theme) {
             // in redraw mode only push a full frame when a widget actually changed.
             // pushing 108KB over usb on every poll for an unchanged screen keeps the
             // device busy for nothing and is what makes it miss real updates
-            if (_forced || ('redraw' === theme.refresh && state.dirty)) {
-                
+            if (_forced && 'update' === theme.refresh) {
+
+                // the panel silently drops parts of a full frame redraw (0xA3) on a
+                // screen change, measured: the white relax screen never showed and the
+                // black one only covered some widgets. update tiles never fail, so in
+                // update mode paint the whole screen with those instead
+                state.dirty = false;
+                state.full_update = true;
+
+                clear_pending_screen_updates(state);
+
+                full_screen_regions(config).forEach(each => {
+
+                    push_change(state, each);
+                });
+
+                state.done_redraw(state);
+
+                return start_update_screen(context, state, config, fulfill);
+            }
+            else if (_forced || ('redraw' === theme.refresh && state.dirty)) {
+
                 state.dirty = false;
 
                 clear_pending_screen_updates(state);
-                
+
                 lcd_redraw(state, context.getImageData(0, 0, config.canvas.width, config.canvas.height));
                 
                 return fulfill(true);
@@ -333,6 +353,14 @@ function fix_rect_bounds(config, rect) {
     }
 
     return { x: rect.x, y: rect.y, width: _width, height: _height };
+}
+
+function full_screen_regions(config) {
+
+    const _rect = { x: 0, y: 0, width: config.canvas.width, height: config.canvas.height };
+
+    // regions are in theme coordinates, next_update_region rotates them for portrait
+    return calc_update_region(fix_rect_bounds(config, config.portrait ? { x: 0, y: 0, width: _rect.height, height: _rect.width } : _rect), config.portrait ? 170 : 254);
 }
 
 function next_draw_widgets(context, state, config, widgets, index, total, fulfill) {
@@ -634,6 +662,20 @@ function lcd_thread_status(state, theme, message) {
             state.done_redraw(state);
         }
 
+        // a full frame that lost packets leaves part of the old screen behind, and on
+        // a screen without widgets nothing would ever paint over it, so do it again
+        if (message.failed && ('redraw' === message.type || state.full_update)) {
+
+            logger.info('lcd_thread_status: full screen ' + message.type + ' failed, painting it again');
+
+            state.force_redraw(state);
+        }
+
+        if ('update' === message.type) {
+
+            state.full_update = false;
+        }
+
         state.drawing = false;
     }
 }
@@ -658,6 +700,7 @@ function main() {
 
                 drawing            : false,             // drawing in progress
                 dirty              : false,             // a widget changed since the last frame
+                full_update        : false,             // the update burst in flight paints the whole screen
                 changes            : [],                // screen update regions
                 change_keys        : new Set(),         // regions already queued, to avoid duplicates
                 change_count       : 0,                 // screen update count
