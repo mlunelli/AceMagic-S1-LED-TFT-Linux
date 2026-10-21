@@ -105,7 +105,8 @@
       "widgets/bar_chart.js",
       "widgets/image.js",
       "widgets/iconify.js",
-      "widgets/weather_icon.js"
+      "widgets/weather_icon.js",
+      "widgets/scroll_text.js"
    ],
    "canvas": {
       "width": 320,
