@@ -357,10 +357,29 @@ function fix_rect_bounds(config, rect) {
 
 function full_screen_regions(config) {
 
-    const _rect = { x: 0, y: 0, width: config.canvas.width, height: config.canvas.height };
-
     // regions are in theme coordinates, next_update_region rotates them for portrait
-    return calc_update_region(fix_rect_bounds(config, config.portrait ? { x: 0, y: 0, width: _rect.height, height: _rect.width } : _rect), config.portrait ? 170 : 254);
+    const _width = config.portrait ? config.canvas.height : config.canvas.width;
+    const _height = config.portrait ? config.canvas.width : config.canvas.height;
+
+    // a region is at most 254 wide, so landscape needs two columns. calc_update_region
+    // sends the whole left column before the right one, which on the panel paints
+    // 2/3 of the screen and then the rest. equal columns sent band by band, top to
+    // bottom, paint like a single wipe instead, for two more packets
+    const _columns = Math.ceil(_width / (config.portrait ? 170 : 254));
+    const _column_width = Math.ceil(_width / _columns);
+    const _rows = Math.max(1, Math.floor(2048 / _column_width));
+
+    const _chunks = [];
+
+    for (var _y = 0; _y < _height; _y += _rows) {
+
+        for (var _x = 0; _x < _width; _x += _column_width) {
+
+            _chunks.push({ x: _x, y: _y, width: Math.min(_column_width, _width - _x), height: Math.min(_rows, _height - _y) });
+        }
+    }
+
+    return _chunks;
 }
 
 function next_draw_widgets(context, state, config, widgets, index, total, fulfill) {
