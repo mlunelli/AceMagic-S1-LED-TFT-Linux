@@ -39,6 +39,13 @@
          }
       },
       {
+         "module": "sensors/nvme_temp.js",
+         "config": {
+            "max_points": 300,
+            "fahrenheit": false
+         }
+      },
+      {
          "module": "sensors/cpu_power.js",
          "config": {
             "max_points": 300,
