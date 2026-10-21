@@ -1,7 +1,7 @@
 'use strict';
 /*!
  * s1panel - lcd_device
- * Copyright (c) 2024 Tomasz Jaworski
+ * Copyright (c) 2024-2025 Tomasz Jaworski
  * GPL-3 Licensed
  */
 const BUFFER_SIZE         = 4104;
@@ -24,6 +24,10 @@ const LCD_PORTRAIT        = 0x02;
 const LCD_REDRAW_START    = 0xF0;
 const LCD_REDRAW_CONTINUE = 0xF1;
 const LCD_REDRAW_END      = 0xF2;
+
+const CHUNK_COUNT         = 27;
+const FINAL_CHUNK_INDEX   = CHUNK_COUNT - 1;
+const FINAL_CHUNK_SIZE    = 2304;
 
 const MAX_WRITE_RETRY     = 2;
 const RETRY_DELAY_MS      = 100;
@@ -137,21 +141,24 @@ function heartbeat(handle) {
 
 function redraw_next(handle, header, image, buffer, index, fulfill, reject) {
 
-    if (index < 27) {
+    if (index < CHUNK_COUNT) {
 
         switch (index) {
+            
             case 0:
                 header.setUint8(2, LCD_REDRAW_START);
                 break;
-            case 26:
+                
+            case FINAL_CHUNK_INDEX:
                 header.setUint8(2, LCD_REDRAW_END);
                 break;
+                
             default:
                 header.setUint8(2, LCD_REDRAW_CONTINUE);
                 break;
         }
 
-        const _length = (index < 26) ? DATA_SIZE : 2304;    // hard coded for now
+        const _length = (index < FINAL_CHUNK_INDEX) ? DATA_SIZE : FINAL_CHUNK_SIZE;    // hard coded for now
 
         header.setUint8(3, 1 + index);              // sequence, 1, 2, 3...
         header.setUint16(5, index * DATA_SIZE);     // offset into image

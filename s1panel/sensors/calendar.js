@@ -1,7 +1,7 @@
 'use strict';
 /*!
  * s1panel - sensor/calendar
- * Copyright (c) 2024 Tomasz Jaworski
+ * Copyright (c) 2024-2025 Tomasz Jaworski
  * GPL-3 Licensed
  */
 var _last_sampled = 0;
@@ -91,7 +91,26 @@ function init(config) {
     return 'calendar';
 }
 
+function stop() {
+    return Promise.resolve();
+}
+
+/* this will only be used for GUI configuration */
+
+function settings() {
+    return {
+        name: 'calendar',
+        description: 'current date info',
+        icon: 'pi-calendar',        
+        multiple: false,
+        ident: [],
+        fields: []
+    };
+}
+
 module.exports = {
     init,
-    sample
+    settings,
+    sample,
+    stop
 };

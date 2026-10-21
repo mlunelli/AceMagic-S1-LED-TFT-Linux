@@ -1,7 +1,7 @@
 'use strict';
 /*!
  * s1panel - api
- * Copyright (c) 2024 Tomasz Jaworski
+ * Copyright (c) 2024-2025 Tomasz Jaworski
  * GPL-3 Licensed
  */
 const node_canvas = require('canvas');
@@ -12,6 +12,7 @@ const multer      = require('multer');
 const upload      = multer();
 
 const service = process.env.SERVICE || false;
+const home_dir = process.env.S1PANEL_CONFIG || __dirname;
 
 function set_dirty(context, redraw) {
 
@@ -50,12 +51,12 @@ function get_theme_dir(context) {
 
     const _config = context.config;
 
-    return path.dirname(_config.theme);
+    return path.join(home_dir, path.dirname(_config.theme));
 }
 
 function get_theme_file_path(context, file) {
 
-    return get_theme_dir(context) + '/' + file;
+    return path.join(get_theme_dir(context), file);
 }
 
 function get_widget_list(context) {
@@ -306,13 +307,13 @@ function set_led_strip(context, request) {
 
         _state.update_led = true;
 
-        read_file('config.json').then(buffer => {
+        read_file(_state.config_file).then(buffer => {
 
             const _file_config = JSON.parse(buffer);
             
             _file_config.led_config = _led_config;
 
-            return write_file('config.json', JSON.stringify(_file_config, null, 3)).then(() => {
+            return write_file(_state.config_file, JSON.stringify(_file_config, null, 3)).then(() => {
 
                 logger.info('api set_led_strip: config.json updated');
                 
@@ -429,6 +430,65 @@ function set_screen_duration(context, request) {
     });
 }
 
+function is_screen_enabled(screen) {
+
+    return screen && screen.enabled !== false;
+}
+
+function find_next_enabled_index(screens, start_index) {
+
+    const _count = screens.length;
+
+    if (!_count) {
+        return start_index;
+    }
+
+    for (var i = 1; i <= _count; i++) {
+
+        const _index = (start_index + i) % _count;
+
+        if (is_screen_enabled(screens[_index])) {
+            return _index;
+        }
+    }
+
+    return start_index;
+}
+
+function set_screen_enabled(context, request) {
+
+    return new Promise((fulfill, reject) => {
+
+        const _screen = find_theme_screen(context, request.screen);
+        const _state = context.state;
+        const _theme = context.theme;
+
+        if (_screen) {
+
+            _screen.enabled = !!request.enabled;
+
+            if (!_screen.enabled) {
+
+                const _current = _theme.screens[_state.screen_index];
+
+                if (_current && _current.id === _screen.id && !_state.screen_paused) {
+
+                    const _next_index = find_next_enabled_index(_theme.screens, _state.screen_index);
+
+                    _state.change_screen = _state.screen_index = _next_index;
+                    _state.force_redraw(_state);
+                }
+            }
+
+            set_dirty(context);
+
+            return fulfill({ enabled: _screen.enabled });
+        }
+
+        reject();
+    });
+}
+
 function get_last_screen_id(screens) {
 
     var _id = 0;
@@ -447,7 +507,7 @@ function add_screen(context, request) {
 
         const _theme = context.theme;
 
-        const _screen = { id: 1 + get_last_screen_id(_theme.screens), name: request.name, background: '#000000', duartion: 0, widgets: [] };
+        const _screen = { id: 1 + get_last_screen_id(_theme.screens), name: request.name, background: '#000000', duration: 0, enabled: true, widgets: [] };
 
         _theme.screens.push(_screen);
 
@@ -465,6 +525,7 @@ function remove_screen(context, request) {
         const _theme = context.theme;
 
         const _current_screen = _theme.screens[_state.screen_index];
+        const _gui_screen = _theme.screens[_state.gui_screen_index];
         
         _theme.screens = _theme.screens.filter(each => each.id !== request.id);
         
@@ -473,9 +534,12 @@ function remove_screen(context, request) {
             
             const _screen = _theme.screens[i];
             
-            if (_screen.id === _current_screen.id) {
+            if (_current_screen && _screen.id === _current_screen.id) {
                 _state.change_screen = _state.screen_index = i;
-                break;
+            }
+
+            if (_gui_screen && _screen.id === _gui_screen.id) {
+                _state.gui_screen_index = i;
             }
         }
 
@@ -532,7 +596,15 @@ function next_screen(context, request) {
             }
         }
 
-        _state.change_screen = _next_screen_index;
+        _state.gui_screen_index = _next_screen_index;
+
+        const _picked = _theme.screens[_next_screen_index];
+
+        if (is_screen_enabled(_picked)) {
+
+            _state.change_screen = _state.screen_index = _next_screen_index;
+            _state.force_redraw(_state);
+        }
 
         fulfill({ id: _id });
     });
@@ -796,7 +868,9 @@ function save_config(context, request) {
     
     return new Promise((fulfill, reject) => {
 
-        read_file('config.json').then(buffer => {
+        const _state = context.state;
+
+        read_file(_state.config_file).then(buffer => {
 
             const _file_config = JSON.parse(buffer);
             const _live_config = context.config;
@@ -831,7 +905,7 @@ function save_config(context, request) {
 
             if (_changed) {
                 
-                return write_file('config.json', JSON.stringify(_live_config, (key, value) => '_private' === key ? undefined : value, 3)).then(() => {
+                return write_file(_state.config_file, JSON.stringify(_live_config, (key, value) => '_private' === key ? undefined : value, 3)).then(() => {
 
                     logger.info('api: config.json updated');
 
@@ -857,7 +931,7 @@ function theme_save(context) {
         const _config = context.config;
         const _theme = context.theme;
 
-        return write_file(_config.theme, JSON.stringify(_theme, (key, value) => '_private' === key ? undefined : value, 3)).then(() => {
+        return write_file(path.join(home_dir, _config.theme), JSON.stringify(_theme, (key, value) => '_private' === key ? undefined : value, 3)).then(() => {
 
             logger.info('api: theme ' + _config.theme + ' saved');
 
@@ -877,7 +951,7 @@ function theme_revert(context) {
         const _state = context.state;
         const _config = context.config;
 
-        read_file(_config.theme).then(buffer => {
+        read_file(path.join(home_dir, _config.theme)).then(buffer => {
 
             const _theme = JSON.parse(buffer);
             const _screen = _theme.screens[0];
@@ -886,7 +960,7 @@ function theme_revert(context) {
             
             _state.update_orientation = true;
             _state.redraw_want++;
-            _state.screen_index = _state.change_screen = 0;
+            _state.screen_index = _state.change_screen = _state.gui_screen_index = 0;
             
             if (_screen.led_config) {
                 _config.led_config.theme = _screen.led_config.theme || 4;
@@ -1102,6 +1176,192 @@ function upload_wallpaper(context, req, res) {
     });
 }
 
+function config_sensor_list(context) {
+    
+    return new Promise(fulfill => {
+
+        const _state = context.state;
+        const _list = [];
+
+        Object.getOwnPropertyNames(_state.sensors).forEach(each => {
+
+            const _info = _state.sensors[each].info || {};            
+            const _config = JSON.parse(JSON.stringify(_state.sensors[each].config || {}, (key, value) => '_private' === key ? undefined : value, 3));
+
+            _list.push({ name: each, info: _info, config: _config });
+        });
+
+        fulfill(_list);
+    });
+}
+
+function config_sensor_scan() {
+    
+    const _sensor_dir = path.join(__dirname, 'sensors');
+    
+    return new Promise(fulfill => {
+        
+        var _list = [];
+
+        fs.readdir(_sensor_dir, (err, files) => {
+
+            if (err) {
+                logger.error('api: config_sensor_scan open ' + _sensor_dir + ' err: ' + err);
+                return fulfill(_list);
+            }
+
+            files.filter(file => file.endsWith('.js') && !file.includes('thread')).forEach(file => {
+                
+                const _sensor_path = path.join(_sensor_dir, file);
+
+                const _module = require(_sensor_path);
+
+                _list.push({..._module.settings(), module: 'sensors/' + file });
+            });
+
+            return fulfill(_list);
+        });
+    });
+}
+
+function config_sensor_add(context, request) {
+        
+    return new Promise((fulfill, reject) => {
+    
+        const _state = context.state;
+
+        const _sensor = request.module;
+        const _config = request.config;
+        const _config_copy = { ...request.config };
+
+        const _sensor_path = path.join(__dirname, _sensor);
+
+        const _module = require(_sensor_path);
+        const _name = _module.init(_config);
+
+        logger.info('api: config_sensor_add ' + _name + ' loaded...');
+
+        // check for duplicates first...
+        if (Object.getOwnPropertyNames(_state.sensors).find(each => _name.toLowerCase() === each.toLowerCase())) {
+
+            logger.info('api: config_sensor_add ' + _name + ' is duplicate...');
+
+            return _module.stop(_config).then(() => {
+                fulfill({ status: 'duplicate', error: '"' + _name + '" sensor already exists'});
+            }); 
+        }
+        
+        read_file(_state.config_file).then(buffer => {
+
+            const _file_config = JSON.parse(buffer);
+            const _live_config = context.config;
+            
+            const _new_sensor = {
+                module: _sensor,
+                config: _config_copy
+            };
+    
+            _file_config.sensors.push(_new_sensor);
+            _live_config.sensors.push(_new_sensor);
+            
+            return write_file(_state.config_file, JSON.stringify(_file_config, null, 3)).then(() => {
+
+                logger.info('api config_sensor_add: config.json updated');
+
+                _state.sensors[_name] = { config: _config, name: _name, info: { ..._module.settings(), module: _sensor }, sample: (rate, format) => {
+                    return _module.sample(rate, format, _config);
+                }, stop: () => {
+                    return _module.stop(_config);
+                }};
+    
+                fulfill({ status: 'success', name: _name });
+            
+            }, reject);
+        
+        }, reject);
+    });
+}
+
+function config_match(a, b) {
+    return Object.keys(a).every(key => a[key] === b[key]) &&
+           Object.keys(b).every(key => a[key] === b[key]);
+}
+
+function config_sensor_remove(context, request) {
+        
+    return new Promise((fulfill, reject) => {
+    
+        const _state = context.state;
+        const _name = request?.name;
+        const _module = request?.module;
+
+        if (!_name || !_module) {
+            return fulfill({ status: 'invalid parameter' });
+        }
+
+        if (!Object.getOwnPropertyNames(_state.sensors).find(each => _name.toLowerCase() === each.toLowerCase())) {
+            return fulfill({ status: 'not found' });
+        }
+
+        const _config = JSON.parse(JSON.stringify(_state.sensors[_name].config || {}, (key, value) => '_private' === key ? undefined : value, 3));
+
+        read_file(_state.config_file).then(buffer => {
+
+            const _file_config = JSON.parse(buffer);
+            const _live_config = context.config;
+            
+            _file_config.sensors = _file_config.sensors.filter(each => {
+                return each.module !== _module || !config_match(each.config, _config);
+            });
+
+            _live_config.sensors = _file_config.sensors.filter(each => {
+                return each.module !== _module || !config_match(each.config, _config);
+            });
+
+            return write_file(_state.config_file, JSON.stringify(_file_config, null, 3)).then(() => {
+
+                logger.info('api config_sensor_remove: config.json updated');
+
+                _state.sensors[_name].stop().then(() => {
+                    delete _state.sensors[_name];
+                    fulfill({ status: 'success'});
+                });
+                
+            }, reject);
+        });
+    });
+}
+
+function config_sensor_edit(context, request) {
+
+    return new Promise((fulfill, reject) => {
+        
+        const _state = context.state;
+        const _name = request?.name;
+        const _module = request?.module;
+        const _config = request?.config;
+
+        if (!_name || !_module || !_config) {
+            return fulfill({ status: 'invalid parameter' });
+        }
+
+        if (!Object.getOwnPropertyNames(_state.sensors).find(each => _name.toLowerCase() === each.toLowerCase())) {
+            return fulfill({ status: 'not found' });
+        }
+
+        // remove...
+        config_sensor_remove(context, request).then(result1 => {
+
+            // add...
+            config_sensor_add(context, request).then(result2 => {                               
+                
+                fulfill(result2);
+            });
+        });
+    });
+}
+
+
 function callback_wrapper(method, url, req, res, callback, type, context) {
 
     // express 5 leaves req.body undefined when the request carries no body at all,
@@ -1123,40 +1383,46 @@ function callback_wrapper(method, url, req, res, callback, type, context) {
 module.exports.init = function(web, context) {
 
     [
-        { method: 'get',  url: '/api/config',              type: 'application/json', callback: get_config },
-        { method: 'get',  url: '/api/theme',               type: 'application/json', callback: get_theme },
-        { method: 'get',  url: '/api/screen',              type: 'application/json', callback: get_active_screen },
-        { method: 'get',  url: '/api/lcd_screen',          type: 'image/png',        callback: get_lcd_screen },
-        { method: 'get',  url: '/api/image',               type: 'image/png',        callback: get_image },
-        { method: 'get',  url: '/api/wallpaper',           type: 'image/png',        callback: get_wallpaper },
-        { method: 'get',  url: '/api/widget_list',         type: 'application/json', callback: get_widget_list },
-        { method: 'get',  url: '/api/sensor_list',         type: 'application/json', callback: get_sensor_list },
-        { method: 'get',  url: '/api/config_dirty',        type: 'application/json', callback: get_config_dirty },
-        { method: 'post', url: '/api/toggle_debug_frame',  type: 'application/json', callback: toggle_debug_rect },
-        { method: 'post', url: '/api/adjust_rect',         type: 'application/json', callback: adjust_rect },
-        { method: 'post', url: '/api/update_property',     type: 'application/json', callback: update_property },
-        { method: 'post', url: '/api/set_background',      type: 'application/json', callback: set_background },
-        { method: 'post', url: '/api/led_strip',           type: 'application/json', callback: set_led_strip },
-        { method: 'get',  url: '/api/led_strip',           type: 'application/json', callback: get_led_strip },
-        { method: 'post', url: '/api/set_orientation',     type: 'application/json', callback: set_orientation },
-        { method: 'post', url: '/api/set_refresh',         type: 'application/json', callback: set_refresh },
-        { method: 'post', url: '/api/set_screen_name',     type: 'application/json', callback: set_screen_name },
-        { method: 'post', url: '/api/set_screen_duration', type: 'application/json', callback: set_screen_duration },
-        { method: 'post', url: '/api/add_screen',          type: 'application/json', callback: add_screen },
-        { method: 'post', url: '/api/remove_screen',       type: 'application/json', callback: remove_screen },
-        { method: 'post', url: '/api/next_screen',         type: 'application/json', callback: next_screen },
-        { method: 'post', url: '/api/add_widget',          type: 'application/json', callback: add_widget },
-        { method: 'post', url: '/api/set_sensor',          type: 'application/json', callback: set_sensor },
-        { method: 'post', url: '/api/delete_widget',       type: 'application/json', callback: delete_widget },
-        { method: 'post', url: '/api/clear_wallpaper',     type: 'application/json', callback: clear_wallpaper },
-        { method: 'post', url: '/api/clear_image',         type: 'application/json', callback: clear_image },
-        { method: 'post', url: '/api/save_config',         type: 'application/json', callback: save_config },
-        { method: 'post', url: '/api/theme_save',          type: 'application/json', callback: theme_save },
-        { method: 'post', url: '/api/theme_revert',        type: 'application/json', callback: theme_revert },
-        { method: 'post', url: '/api/up_widget',           type: 'application/json', callback: up_widget },
-        { method: 'post', url: '/api/down_widget',         type: 'application/json', callback: down_widget },
-        { method: 'post', url: '/api/top_widget',          type: 'application/json', callback: top_widget },
-        { method: 'post', url: '/api/bottom_widget',       type: 'application/json', callback: bottom_widget },
+        { method: 'get',  url: '/api/config',               type: 'application/json', callback: get_config },
+        { method: 'get',  url: '/api/theme',                type: 'application/json', callback: get_theme },
+        { method: 'get',  url: '/api/screen',               type: 'application/json', callback: get_active_screen },
+        { method: 'get',  url: '/api/lcd_screen',           type: 'image/png',        callback: get_lcd_screen },
+        { method: 'get',  url: '/api/image',                type: 'image/png',        callback: get_image },
+        { method: 'get',  url: '/api/wallpaper',            type: 'image/png',        callback: get_wallpaper },
+        { method: 'get',  url: '/api/widget_list',          type: 'application/json', callback: get_widget_list },
+        { method: 'get',  url: '/api/sensor_list',          type: 'application/json', callback: get_sensor_list },
+        { method: 'get',  url: '/api/config_dirty',         type: 'application/json', callback: get_config_dirty },
+        { method: 'post', url: '/api/toggle_debug_frame',   type: 'application/json', callback: toggle_debug_rect },
+        { method: 'post', url: '/api/adjust_rect',          type: 'application/json', callback: adjust_rect },
+        { method: 'post', url: '/api/update_property',      type: 'application/json', callback: update_property },
+        { method: 'post', url: '/api/set_background',       type: 'application/json', callback: set_background },
+        { method: 'post', url: '/api/led_strip',            type: 'application/json', callback: set_led_strip },
+        { method: 'get',  url: '/api/led_strip',            type: 'application/json', callback: get_led_strip },
+        { method: 'post', url: '/api/set_orientation',      type: 'application/json', callback: set_orientation },
+        { method: 'post', url: '/api/set_refresh',          type: 'application/json', callback: set_refresh },
+        { method: 'post', url: '/api/set_screen_name',      type: 'application/json', callback: set_screen_name },
+        { method: 'post', url: '/api/set_screen_duration',  type: 'application/json', callback: set_screen_duration },
+        { method: 'post', url: '/api/set_screen_enabled',   type: 'application/json', callback: set_screen_enabled },
+        { method: 'post', url: '/api/add_screen',           type: 'application/json', callback: add_screen },
+        { method: 'post', url: '/api/remove_screen',        type: 'application/json', callback: remove_screen },
+        { method: 'post', url: '/api/next_screen',          type: 'application/json', callback: next_screen },
+        { method: 'post', url: '/api/add_widget',           type: 'application/json', callback: add_widget },
+        { method: 'post', url: '/api/set_sensor',           type: 'application/json', callback: set_sensor },
+        { method: 'post', url: '/api/delete_widget',        type: 'application/json', callback: delete_widget },
+        { method: 'post', url: '/api/clear_wallpaper',      type: 'application/json', callback: clear_wallpaper },
+        { method: 'post', url: '/api/clear_image',          type: 'application/json', callback: clear_image },
+        { method: 'post', url: '/api/save_config',          type: 'application/json', callback: save_config },
+        { method: 'post', url: '/api/theme_save',           type: 'application/json', callback: theme_save },
+        { method: 'post', url: '/api/theme_revert',         type: 'application/json', callback: theme_revert },
+        { method: 'post', url: '/api/up_widget',            type: 'application/json', callback: up_widget },
+        { method: 'post', url: '/api/down_widget',          type: 'application/json', callback: down_widget },
+        { method: 'post', url: '/api/top_widget',           type: 'application/json', callback: top_widget },
+        { method: 'post', url: '/api/bottom_widget',        type: 'application/json', callback: bottom_widget },
+        { method: 'get',  url: '/api/config_sensor_list',   type: 'application/json', callback: config_sensor_list },
+        { method: 'get',  url: '/api/config_sensor_scan',   type: 'application/json', callback: config_sensor_scan },
+        { method: 'post', url: '/api/config_sensor_add',    type: 'application/json', callback: config_sensor_add },
+        { method: 'post', url: '/api/config_sensor_remove', type: 'application/json', callback: config_sensor_remove },
+        { method: 'post', url: '/api/config_sensor_edit',   type: 'application/json', callback: config_sensor_edit },
 
     ].forEach(each => {
 

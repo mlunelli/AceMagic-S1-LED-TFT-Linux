@@ -34,6 +34,37 @@
         </template>
     </ConfirmDialog>
 
+    <ConfirmDialog group="headless3">
+        <template #container="{ message, rejectCallback }">
+            <div class="flex flex-column align-items-center p-5 surface-overlay border-round">
+                <div class="border-circle bg-red-500 inline-flex justify-content-center align-items-center h-6rem w-6rem -mt-8">
+                    <i class="pi pi-exclamation-circle text-5xl"></i>
+                </div>
+                <span class="font-bold text-2xl block mb-2 mt-4">{{ message.header }}</span>
+                <p class="mb-0">{{ message.message }}</p>
+                <div class="flex align-items-center gap-2 mt-4">
+                    <Button label="OK" outlined @click="rejectCallback" class="w-8rem" severity="danger"></Button>
+                </div>
+            </div>
+        </template>
+    </ConfirmDialog>    
+
+    <ConfirmDialog group="headless4">
+        <template #container="{ message, acceptCallback, rejectCallback }">
+            <div class="flex flex-column align-items-center p-5 surface-overlay border-round">
+                <div class="border-circle bg-red-500 inline-flex justify-content-center align-items-center h-6rem w-6rem -mt-8">
+                    <i class="pi pi-exclamation-circle text-5xl"></i>
+                </div>
+                <span class="font-bold text-2xl block mb-2 mt-4">{{ message.header }}</span>
+                <p class="mb-0">{{ message.message }}</p>
+                <div class="flex align-items-center gap-2 mt-4">
+                    <Button label="Rename" @click="acceptCallback" class="w-8rem" severity="success"></Button>
+                    <Button label="Keep" outlined @click="rejectCallback" class="w-8rem" severity="danger"></Button>
+                </div>
+            </div>
+        </template>
+    </ConfirmDialog>
+
     <Dialog v-model:visible="config_manager.show" maximizable modal header="Settings" :style="{ width: '50rem' }" :breakpoints="{ '1199px': '75vw', '575px': '90vw' }">
 
         <div class="flex justify-content-start flex-wrap w-full gap-3">
@@ -128,6 +159,172 @@
 
     </Dialog>
 
+    <Dialog v-model:visible="sensor_manage.show" maximizable modal header="Sensor Manage" :style="{ width: '60rem' }" :breakpoints="{ '1199px': '75vw', '575px': '90vw' }">
+
+        <div class="h-65rem">
+
+            <DataTable ref="dt" :value="sensor_manage.list" dataKey="name"
+                :paginator="sensor_manage.list.length > 10" 
+                :rows="10" 
+                :filters="sensor_manage.filters"
+                :rowsPerPageOptions="[5,10,25]"
+                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown" 
+                currentPageReportTemplate="Showing {first} to {last} of {totalRecords} themes">
+
+                <template #header>
+                    <div class="flex justify-content-start flex-wrap w-full gap-3 mb-3">
+                        <div class="w-6">
+                            <Button size="small" text plain @click="onOpenAddSensor()">
+                                <i class="pi pi-plus mr-2" style="color: #1bd443"></i>Add Sensor Instance
+                            </Button>
+                        </div>
+                    </div>
+                </template>
+
+                <Column field="name" header="Name" sortable>
+                
+                    <template #body="row">
+
+                        <div class="text-overflow-ellipsis">{{ row.data.name }}</div>
+            
+                    </template>
+                
+                </Column>
+
+                <Column field="info.name" header="Type" sortable>
+                
+                    <template #body="row">
+                        
+                        <div class="text-overflow-ellipsis">
+                            <i v-if="row.data.info.icon" :class="'pi ' + row.data.info.icon +' mr-2'"></i>{{ row.data.info.name }}
+                        </div>
+            
+                    </template>
+                
+                </Column>
+
+                <Column field="info.description" header="Description" sortable>
+                
+                    <template #body="row">
+                        
+                        <div class="text-overflow-ellipsis">{{ row.data.info.description }}</div>
+            
+                    </template>
+                
+                </Column>
+
+                <Column field="" header="Action">
+                
+                    <template #body="row">
+                        
+                        <div class="flex justify-content-start flex-nowrap w-full gap-1">
+
+                            <Button v-if="row.data.info.fields.length" class="ml-2" size="small" text plain @click="onSensorEdit(row.data)">
+                                <i class="pi pi-pencil mr-2" style="color: cyan"></i>Edit
+                            </Button>
+
+                            <Button v-if="row.data.info.multiple" class="ml-2" size="small" text plain @click="onSensorRemove(row.data)">
+                                <i class="pi pi-trash mr-2" style="color: #ff0000"></i>Remove
+                            </Button>
+                        
+                        </div>
+
+                    </template>
+                
+                </Column>                
+
+            </DataTable>
+
+        </div>
+
+    </Dialog>
+
+    <Dialog v-model:visible="sensor_manage.show_add" maximizable modal header="Add Sensor Instance" :style="{ width: '60rem' }" :breakpoints="{ '1199px': '75vw', '575px': '90vw' }">
+
+        <div class="h-35rem">
+
+            <div class="w-full md:w-6">
+                <label class="w-full text-sm" for="sensor">Sensor</label>                    
+                <Dropdown id="sensor" v-model="sensor_manage.picked" :options="sensor_manage.sensors" optionValue="id" optionLabel="name" placeholder="Pick a Sensor" class="w-full" @update:modelValue="onSensorAddChange()"/>
+            </div>
+
+        </div>
+
+        <div v-if="sensor_manage.picked">
+
+            <ul>
+                <li v-for="(item, index) in sensor_manage.config_data.fields" :key="index"  class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-nowrap">
+                                            
+                    <div class="text-500 w-11rem font-medium">
+                        {{ item.name }}
+                    </div>
+    
+                    <div class="text-900 w-full">
+                        <div v-if="item.type === 'string'">                                                
+                            <InputText class="w-full sm:w-16rem" type="text" v-model="item.value"/>
+                        </div>
+                        <div v-else-if="item.type === 'number'">
+                            <InputNumber class="w-full sm:w-16rem" v-model="item.value" :useGrouping="false"/>
+                        </div>
+                        <div v-else-if="item.type === 'list'">                                                
+                            <Dropdown class="w-full sm:w-16rem" v-model="item.value" :options="item.list" placeholder="Choose an option"/>
+                        </div>
+                        <div v-else-if="item.type === 'boolean'">
+                            <InputSwitch v-model="item.value"/>
+                        </div>
+                        <div v-else>
+                            {{ item.value }} 
+                        </div>  
+                    </div>
+                </li>
+            </ul>
+
+            <div class="flex justify-content-end align-items-center gap-2 mt-4">
+                <Button label="Save" class="w-8rem" severity="primary" :disabled="sensor_manage.saving" @click="onAddSensor()"></Button>
+                <Button label="Cancel" outlined class="w-8rem" severity="secondary" @click="sensor_manage.show_add = false"></Button>
+            </div>
+
+        </div>
+
+    </Dialog>
+
+
+    <Dialog v-model:visible="sensor_manage.show_edit" maximizable modal header="Edit Sensor" :style="{ width: '60rem' }" :breakpoints="{ '1199px': '75vw', '575px': '90vw' }">
+
+        <ul>
+            <li v-for="(item, index) in sensor_manage.edit.info.fields" :key="index"  class="flex align-items-center py-3 px-2 border-top-1 surface-border flex-nowrap">
+                                        
+                <div class="text-500 w-11rem font-medium">
+                    {{ item.name }}
+                </div>
+
+                <div class="text-900 w-full">
+                    <div v-if="item.type === 'string'">                                                
+                        <InputText class="w-full sm:w-16rem" type="text" v-model="item.value"/>
+                    </div>
+                    <div v-else-if="item.type === 'number'">
+                        <InputNumber class="w-full sm:w-16rem" v-model="item.value" :useGrouping="false"/>
+                    </div>
+                    <div v-else-if="item.type === 'list'">                                                
+                        <Dropdown class="w-full sm:w-16rem" v-model="item.value" :options="item.list" placeholder="Choose an option"/>
+                    </div>
+                    <div v-else-if="item.type === 'boolean'">
+                        <InputSwitch v-model="item.value"/>
+                    </div>
+                    <div v-else>
+                        {{ item.value }} 
+                    </div>  
+                </div>
+            </li>
+        </ul>
+
+        <div class="flex justify-content-end align-items-center gap-2 mt-4">
+            <Button label="Save" class="w-8rem" severity="primary" :disabled="sensor_manage.saving" @click="onSensorSave()"></Button>
+            <Button label="Cancel" outlined class="w-8rem" severity="secondary" @click="sensor_manage.show_edit = false"></Button>
+        </div>
+
+    </Dialog>
+
     <Dialog v-model:visible="screen_manage.show" maximizable modal header="Manage Screens" :style="{ width: '50rem' }" :breakpoints="{ '1199px': '75vw', '575px': '90vw' }">
 
         <div class="h-30rem">
@@ -153,6 +350,19 @@
                     </div>
 
                 </template>
+
+                <Column field="enabled" header="LCD" style="width: 6rem">
+                
+                    <template #body="row">
+
+                        <div class="flex align-items-center gap-2">
+                            <Checkbox :modelValue="row.data.enabled !== false" :binary="true" :inputId="'screen_lcd_' + row.data.id" @update:modelValue="onSetScreenEnabledFromManage(row.data, $event)" />
+                            <label :for="'screen_lcd_' + row.data.id" class="text-sm">Active</label>
+                        </div>
+
+                    </template>
+
+                </Column>
 
                 <Column field="name" header="Name" sortable>
 
@@ -260,6 +470,7 @@
                 <Card class="h-full">
                     <template #title>Settings 
                         <i class="cursor-pointer pi pi-cog ml-3" style="color: #1bd443" @click="onEditConfig()"></i>
+                        <i class="cursor-pointer pi pi-bolt ml-3" style="color: #ff0000" @click="onOpenSensorManage()"></i>
                     </template>
                     <template #content>
 
@@ -343,6 +554,11 @@
                             <div class="w-full md:w-2">
                                 <label class="w-full text-sm" for="refresh">Refresh</label>                    
                                 <Dropdown id="refresh" v-model="edit_refresh" :options="methods" optionValue="id" optionLabel="name" placeholder="Pick a Refresh" class="w-full" @update:modelValue="onRefreshChange()"/>
+                            </div>
+
+                            <div class="w-full md:w-2">
+                                <label class="w-full text-sm" for="screen_enabled">LCD Active</label>
+                                <Dropdown id="screen_enabled" v-model="edit_screen_enabled" :options="screen_status" optionValue="id" optionLabel="name" placeholder="Pick status" class="w-full" @update:modelValue="onSetScreenEnabled()"/>
                             </div>
 
                             <div class="w-full md:w-auto">
@@ -577,7 +793,7 @@
 
 /*!
  * s1panel-gui - App.vue
- * Copyright (c) 2024 Tomasz Jaworski
+ * Copyright (c) 2024-2025 Tomasz Jaworski
  * GPL-3 Licensed
  */
 
@@ -673,6 +889,15 @@ export default {
                     { id: 4, name: 'Off',           icon: 'pi pi-power-off'},
                 ]
             },
+            sensor_manage: {
+                show: false,
+                show_add: false,
+                list: [],
+                sensors: [],
+                picked: null,
+                show_edit: false,
+                edit: null
+            },
             config: null,
             interval: null,
             timeout: null,
@@ -690,6 +915,7 @@ export default {
             edit_duration: null,
             edit_background: null,
             edit_screen_name: null,
+            edit_screen_enabled: true,
             unsaved_changes: false,
             uploading: [],
             orientation: [
@@ -699,6 +925,10 @@ export default {
             methods: [
                 { id: 'redraw', name: 'Redraw' },
                 { id: 'update', name: 'Update' },
+            ],
+            screen_status: [
+                { id: true, name: 'Active' },
+                { id: false, name: 'Inactive' },
             ]
         };
     },
@@ -731,6 +961,7 @@ export default {
             this.edit_duration = this.screen.duration || 0;
             this.edit_background = this.screen.background || '#000000';
             this.edit_screen_name = this.screen.name || 'n/a';
+            this.edit_screen_enabled = this.screen.enabled !== false;
 
             this.unsaved_changes = this.config.unsaved_changes || false;
             
@@ -852,6 +1083,20 @@ export default {
                 this.unsaved_changes = true;
             });
         },
+        onSetScreenEnabled() {
+
+            return api.set_screen_enabled(this.screen.id, this.edit_screen_enabled).then(() => {
+                this.screen.enabled = this.edit_screen_enabled;
+                this.unsaved_changes = true;
+            });
+        },
+        onSetScreenEnabledFromManage(screen, enabled) {
+
+            return api.set_screen_enabled(screen.id, enabled).then(() => {
+                screen.enabled = enabled;
+                this.unsaved_changes = true;
+            });
+        },
         onSensorChange(widget, item) {
 
             const _is_sensor = this.sensors.find(each => { return each.name === item.value; });
@@ -880,6 +1125,235 @@ export default {
             }
 
             this.theme_manage.show = true;
+        },
+        onOpenSensorManage() {
+            api.config_sensor_list().then(response => {
+                this.sensor_manage.list = response;
+                this.sensor_manage.show = true;
+            });  
+        },
+        onOpenAddSensor() {
+            api.config_sensor_scan().then(response => {
+
+                var _list = [];
+                
+                response.forEach(sensor => {
+                    if (sensor.multiple) {
+                        _list.push({ id: sensor.name, name: sensor.name + ' - ' + sensor.description, data: sensor });
+                    }
+                });
+
+                this.sensor_manage.sensors = _list;
+                this.sensor_manage.picked = null;
+                this.sensor_manage.show_add = true;
+            });
+        },
+        onSensorAddChange() {
+
+            const _sensor = this.sensor_manage.sensors.find(each => { return each.id === this.sensor_manage.picked });
+
+            if (_sensor) {
+
+                this.sensor_manage.config_data = _sensor.data;
+            }
+
+        },
+        onAddSensor() {
+
+            const _sensor = this.sensor_manage.sensors.find(each => { return each.id === this.sensor_manage.picked });
+
+            if (_sensor) {
+
+                var _config = Object.fromEntries(_sensor.data.fields.map(item => [item.name, item.value]));
+                
+                api.config_sensor_add(_sensor.data.module, _config).then(response => {
+
+                    if ('success' !== response.status) {
+
+                        this.$confirm.require({
+                            group: 'headless3',
+                            header: 'Add Sensor Error',
+                            message: response.error,
+                            accept: () => {
+                            },
+                            reject: () => {                                
+                            }
+                        });
+                    }
+                    else {
+                
+                        Promise.all([ api.config_sensor_list(), api.fetch_sensors()]).then(refresh_response => {
+
+                            this.sensor_manage.list = refresh_response[0];
+                            this.sensors = refresh_response[1];
+                            this.sensor_manage.show_add = false;
+                        });
+                    }
+                });
+            }
+            else {
+                this.sensor_manage.show_add = false;    
+            }
+        },
+        onSensorRemove(data) {
+
+            if (data) {
+                
+                this.$confirm.require({
+                    group: 'headless1',
+                    header: 'Are you sure?',
+                    message: 'This action will remove "' + data.name + '" sensor instance!',
+                    accept: () => {
+                    
+                        api.config_sensor_remove(data.name, data.info.module).then(response => {
+
+                            if ('success' !== response.status) {
+
+                                this.$confirm.require({
+                                    group: 'headless3',
+                                    header: 'Remove Sensor Error',
+                                    message: response.error,
+                                    accept: () => {
+                                    },
+                                    reject: () => {                                
+                                    }
+                                });
+                            }
+                            else {
+
+                                Promise.all([ api.config_sensor_list(), api.fetch_sensors()]).then(refresh_response => {
+
+                                    this.sensor_manage.list = refresh_response[0];
+                                    this.sensors = refresh_response[1];
+                                });
+                            }
+                        });
+                    },
+                    reject: () => {
+                    }
+                });
+            }
+        },
+        onSensorEdit(data) {
+
+            if (data) {
+                const _sensor = JSON.parse(JSON.stringify(data));
+                
+                _sensor.info.fields.forEach(field => {
+                    if (_sensor.config.hasOwnProperty(field.name)) {
+                        field.value = _sensor.config[field.name];
+                    }
+                });
+                
+                this.sensor_manage.show_edit = true;
+                this.sensor_manage.edit = _sensor;
+            }
+        },
+        onThemeRenameSensor(new_name, old_name) {
+
+            return new Promise((fulfill, reject) => {
+
+                if (new_name !== old_name) {
+
+                    var _count = 0;
+
+                    this.theme.screens.forEach(screen => {
+
+                        screen.widgets.forEach(widget => {
+
+                            if (widget.value === old_name) {                    
+                                _count++;
+                            }
+                        });
+                    });
+
+                    if (_count) {
+
+                        this.$confirm.require({
+                            group: 'headless4',
+                            header: 'Sensor Identity Changed!',
+                            message: 'Would you like to update ' + _count + ' widgets that are currently using "' + old_name + '" with "' + new_name + '"?',
+                            accept: () => {
+
+                                var _promises = [];
+
+                                this.theme.screens.forEach(screen => {
+
+                                    screen.widgets.forEach(widget => {
+
+                                        if (widget.value === old_name) {
+
+                                            _promises.push(api.set_sensor(screen.id, widget.id, new_name));
+                                            widget.value = new_name;
+                                        }
+                                    });                            
+                                });
+
+                                Promise.all(_promises).then(() => {
+
+                                    this.screen.widgets.forEach(each => {
+                                        make_widget_table(each, this.widgets);
+                                    });
+
+                                    this.unsaved_changes = true;
+                                    
+                                    return fulfill();
+                                });
+                            },
+                            reject: () => {
+                                return fulfill();
+                            }
+                        });
+                    }
+                    else {
+                        return fulfill();
+                    }
+                }
+                else {
+                    return fulfill();
+                }
+            });
+        },
+        onSensorSave() {
+            
+            const _sensor = this.sensor_manage.edit;
+
+            if (_sensor) {
+
+                _sensor.info.fields.forEach(field => {
+                    if (_sensor.config.hasOwnProperty(field.name)) {
+                        _sensor.config[field.name] = field.value;
+                    }
+                });
+                
+                api.config_sensor_edit(_sensor.name, _sensor.info.module, _sensor.config).then(response => {
+
+                    if ('success' !== response.status) {
+                        this.$confirm.require({
+                            group: 'headless3',
+                            header: 'Edit Sensor Error',
+                            message: response.error,
+                            accept: () => {
+                            },
+                            reject: () => {                                
+                            }
+                        });                        
+                    }
+                    else {
+
+                        this.onThemeRenameSensor(response.name, _sensor.name).then(() => {
+
+                            Promise.all([ api.config_sensor_list(), api.fetch_sensors()]).then(refresh_response => {
+
+                                this.sensor_manage.list = refresh_response[0];
+                                this.sensors = refresh_response[1];
+
+                                this.sensor_manage.show_edit = false;
+                            });     
+                        });
+                    }               
+                });
+            }
         },
         onConfirmDeleteTheme(item) {
 
@@ -964,6 +1438,7 @@ export default {
                     this.edit_duration = this.screen.duration || 0;
                     this.edit_background = this.screen.background || '#000000';
                     this.edit_screen_name = this.screen.name || 'n/a';
+                    this.edit_screen_enabled = this.screen.enabled !== false;
 
                     this.screen.widgets.forEach(each => {
 
@@ -1155,6 +1630,7 @@ export default {
                 this.edit_duration = this.screen.duration || 0;
                 this.edit_background = this.screen.background || '#000000';
                 this.edit_screen_name = this.screen.name || 'n/a';
+                this.edit_screen_enabled = this.screen.enabled !== false;
                 
                 this.screen.widgets.forEach(each => {
                     

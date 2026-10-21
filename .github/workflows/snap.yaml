@@ -1,0 +1,46 @@
+name: Publish Snap
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Snapcraft environment
+        run: |
+          sudo systemctl restart snapd
+          sleep 5
+          sudo snap install core24 --channel=latest/stable
+          sudo snap install snapcraft --classic
+          
+      - name: Build and Upload Snap
+        working-directory: ./s1panel
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_LOGIN }}
+        run: |
+          echo "Current directory: $(pwd)"
+          ls snap || echo "No snap directory found!"
+          
+          snapcraft --destructive-mode
+          
+          SNAP_FILE=$(ls *.snap | head -1)
+          echo "Built $SNAP_FILE"
+          
+          TAG_NAME="${GITHUB_REF##*/}"
+          if [[ "$TAG_NAME" =~ ^v[0-9] ]]; then
+            CHANNEL="stable"
+          else
+            CHANNEL="edge"
+          fi
+          
+          echo "Releasing to: $CHANNEL"
+          snapcraft upload "$SNAP_FILE" --release=$CHANNEL

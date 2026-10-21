@@ -1,7 +1,7 @@
 'use strict';
 /*!
  * s1panel - sensor/clock
- * Copyright (c) 2024 Tomasz Jaworski
+ * Copyright (c) 2024-2025 Tomasz Jaworski
  * GPL-3 Licensed
  */
 var _last_sampled = 0;
@@ -68,7 +68,26 @@ function init(config) {
     return 'clock';
 }
 
+function stop() {
+    return Promise.resolve();
+}
+
+/* this will only be used for GUI configuration */
+
+function settings() {
+    return {
+        name: 'clock',
+        description: 'current time info',
+        icon: 'pi-clock',
+        multiple: false,
+        ident: [],
+        fields: []
+    };
+}
+
 module.exports = {
     init,
-    sample
+    settings,
+    sample,
+    stop
 };

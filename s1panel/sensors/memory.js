@@ -1,7 +1,7 @@
 'use strict';
 /*!
  * s1panel - sensor/memory
- * Copyright (c) 2024 Tomasz Jaworski
+ * Copyright (c) 2024-2025 Tomasz Jaworski
  * GPL-3 Licensed
  */
 const fs = require('fs');
@@ -276,7 +276,7 @@ function sample(rate, format) {
 function init(config) {
     
     if (config) {
-        _max_points = config.max_points;
+        _max_points = config.max_points || 10;
     }
 
     logger.info('initialize: memory sensor max points are set to ' + _max_points);
@@ -284,8 +284,28 @@ function init(config) {
     return 'memory';
 }
 
+function stop() {
+    return Promise.resolve();
+}
+
+/* this will only be used for GUI configuration */
+
+function settings() {
+    return {
+        name: 'memory',
+        description: 'memory monitor',
+        icon: 'pi-chart-pie',        
+        multiple: false,
+        ident: [],        
+        fields: [
+            { name: 'max_points', type: 'number', value: 300 },
+        ]
+    };
+}
 
 module.exports = {
     init,
-    sample
+    settings,
+    sample,
+    stop
 };

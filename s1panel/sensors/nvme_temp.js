@@ -213,7 +213,31 @@ function init(config) {
     return 'nvme_temp';
 }
 
+function stop() {
+    return Promise.resolve();
+}
+
+/* this will only be used for GUI configuration */
+
+function settings() {
+    return {
+        name: 'nvme_temp',
+        description: 'nvme drive temp monitor',
+        icon: 'pi-server',
+        multiple: false,
+        ident: [],
+        fields: [
+            { name: 'max_points', type: 'number', value: 300 },
+            { name: 'fahrenheit', type: 'boolean', value: false },
+            { name: 'max_temp', type: 'number', value: 0 },     // 0 picks the limit the drive reports
+            { name: 'min_temp', type: 'number', value: 0 },
+        ]
+    };
+}
+
 module.exports = {
     init,
-    sample
+    settings,
+    sample,
+    stop
 };

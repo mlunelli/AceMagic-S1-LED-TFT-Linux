@@ -274,7 +274,29 @@ function init(config) {
 }
 
 
+function stop() {
+    return Promise.resolve();
+}
+
+/* this will only be used for GUI configuration */
+
+function settings() {
+    return {
+        name: 'cpu_power',
+        description: 'cpu power monitor',
+        icon: 'pi-bolt',
+        multiple: false,
+        ident: [],
+        fields: [
+            { name: 'max_points', type: 'number', value: 300 },
+            { name: 'max_watts', type: 'number', value: 28 },
+        ]
+    };
+}
+
 module.exports = {
     init,
-    sample
+    settings,
+    sample,
+    stop
 };

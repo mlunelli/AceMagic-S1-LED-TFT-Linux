@@ -1,7 +1,7 @@
 'use strict';
 /*!
  * s1panel - lcd_thread
- * Copyright (c) 2024 Tomasz Jaworski
+ * Copyright (c) 2024-2025 Tomasz Jaworski
  * GPL-3 Licensed
  */
 const threads     = require('worker_threads');
@@ -11,10 +11,15 @@ const logger      = require('./logger');
 
 const usb_hid     = node_hid.HIDAsync;
 
+node_hid.setDriverType('libusb');
+
 const START_COOL_DOWN = 1000;
 const POLL_TIMEOUT = 10;
 const STATS_INTERVAL = 60000;
 const REDRAW_PACKETS = 27;
+
+// my hid throws way too many of these errors, hide them by default!
+const DEBUG_TRACE = false;
 
 function get_hr_time() {
 
@@ -198,7 +203,9 @@ function start_lcd_orientation(handle, state, job, fulfill) {
 
     }, err => {
 
-        logger.error('lcd_thread: start_lcd_orientation hid error: ' + err);
+        if (DEBUG_TRACE) {
+            logger.error('lcd_thread: start_lcd_orientation hid error: ' + err);
+        }
 
     }).finally(() => {
         
@@ -367,7 +374,12 @@ function main(state) {
         message_handler(state, message);
     });
 
-    node_hid.setDriverType('libusb');
+    node_hid.devices().find(each => {
+
+        if (1241 === each.vendorId && 64769 === each.productId) {
+            logger.info(JSON.stringify(each, null, 3));
+        }
+    });
 
     usb_hid.open(state.device).then(handle => {
     
