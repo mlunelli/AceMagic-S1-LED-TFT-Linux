@@ -46,6 +46,10 @@ function process_weather(priv, message) {
     var _units = message.units;
     var _weather = message.weather;
 
+    if (message.location) {
+        priv.location = message.location;
+    }
+
     if (priv.forecast) {
 
         priv.is_day = 1;

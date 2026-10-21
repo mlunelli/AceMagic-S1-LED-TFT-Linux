@@ -92,9 +92,17 @@ function current_weather(config) {
             
                     //logger.info(JSON.stringify(data));
 
+                    // the geocoding result only lives in this thread, without it the
+                    // city, state, county and town tokens could only ever say n/a
                     _weather_data = {
                         weather : config.forecast ? data.daily : data.current_weather,
-                        units   : config.forecast ? data.daily_units : data.current_weather_units
+                        units   : config.forecast ? data.daily_units : data.current_weather_units,
+                        location: {
+                            name  : config.geo.name,
+                            admin1: config.geo.admin1,
+                            admin2: config.geo.admin2,
+                            admin3: config.geo.admin3
+                        }
                     };
     
                 }, () => {
