@@ -219,6 +219,174 @@
             "intensity": 1,
             "speed": 3
          }
+      },
+      {
+         "id": 4,
+         "name": "In riproduzione",
+         "background": "#000000",
+         "duration": 30000,
+         "led_config": {
+            "theme": 4,
+            "intensity": 1,
+            "speed": 3
+         },
+         "widgets": [
+            {
+               "sensor": true,
+               "value": "kodi",
+               "refresh": 1000,
+               "debug_frame": false,
+               "id": 1,
+               "group": 1,
+               "name": "scroll_text",
+               "font": "bold 21px Arial",
+               "color": "#e0e0e0",
+               "align": "left",
+               "mode": "page",
+               "interval": 3000,
+               "rect": {
+                  "x": 8,
+                  "y": 8,
+                  "width": 304,
+                  "height": 26
+               },
+               "format": "{1}"
+            },
+            {
+               "sensor": true,
+               "value": "kodi",
+               "refresh": 1000,
+               "debug_frame": false,
+               "id": 2,
+               "group": 1,
+               "name": "text",
+               "font": "15px Arial",
+               "color": "#878787",
+               "align": "left",
+               "rect": {
+                  "x": 8,
+                  "y": 38,
+                  "width": 304,
+                  "height": 20
+               },
+               "format": "{2}"
+            },
+            {
+               "sensor": true,
+               "value": "kodi",
+               "refresh": 1000,
+               "debug_frame": false,
+               "id": 3,
+               "group": 2,
+               "name": "progress_bar",
+               "bar": "#00e600",
+               "background": "#333333",
+               "radius": 5,
+               "rect": {
+                  "x": 8,
+                  "y": 72,
+                  "width": 258,
+                  "height": 12
+               },
+               "format": "{6}"
+            },
+            {
+               "sensor": true,
+               "value": "kodi",
+               "refresh": 1000,
+               "debug_frame": false,
+               "id": 4,
+               "group": 2,
+               "name": "text",
+               "font": "15px Arial",
+               "color": "#e0e0e0",
+               "align": "right",
+               "rect": {
+                  "x": 268,
+                  "y": 68,
+                  "width": 44,
+                  "height": 20
+               },
+               "format": "{6}%"
+            },
+            {
+               "sensor": true,
+               "value": "kodi",
+               "refresh": 1000,
+               "debug_frame": false,
+               "id": 5,
+               "group": 2,
+               "name": "text",
+               "font": "15px Arial",
+               "color": "#878787",
+               "align": "left",
+               "rect": {
+                  "x": 8,
+                  "y": 92,
+                  "width": 180,
+                  "height": 20
+               },
+               "format": "{3} / {4}"
+            },
+            {
+               "sensor": true,
+               "value": "kodi",
+               "refresh": 1000,
+               "debug_frame": false,
+               "id": 6,
+               "group": 2,
+               "name": "text",
+               "font": "15px Arial",
+               "color": "#878787",
+               "align": "right",
+               "rect": {
+                  "x": 190,
+                  "y": 92,
+                  "width": 122,
+                  "height": 20
+               },
+               "format": "{5}"
+            },
+            {
+               "sensor": true,
+               "value": "kodi",
+               "refresh": 1000,
+               "debug_frame": false,
+               "id": 7,
+               "group": 3,
+               "name": "text",
+               "font": "17px Arial",
+               "color": "#e0e0e0",
+               "align": "left",
+               "rect": {
+                  "x": 8,
+                  "y": 138,
+                  "width": 200,
+                  "height": 24
+               },
+               "format": "{9}  fine alle {7}"
+            },
+            {
+               "sensor": true,
+               "value": "clock",
+               "refresh": 1000,
+               "debug_frame": false,
+               "id": 8,
+               "group": 3,
+               "name": "text",
+               "font": "bold 22px Arial",
+               "color": "#878787",
+               "align": "right",
+               "rect": {
+                  "x": 210,
+                  "y": 136,
+                  "width": 102,
+                  "height": 28
+               },
+               "format": "{0}"
+            }
+         ],
+         "show_when": "kodi"
       }
    ]
 }
