@@ -120,7 +120,8 @@ function get_sensor_list(context) {
 
         Object.getOwnPropertyNames(_state.sensors).forEach(each => {
 
-            _list.push({ name: each, value: each });
+            // trigger: the sensor can decide when a screen is shown (show_when)
+            _list.push({ name: each, value: each, trigger: _state.sensors[each].active ? true : false });
         });
 
         fulfill(_list);
@@ -453,6 +454,39 @@ function find_next_enabled_index(screens, start_index) {
     }
 
     return start_index;
+}
+
+/*
+ * show_when is the name of a sensor with an active() (kodi), the screen is only
+ * in the rotation while it is active. empty means always
+ */
+function set_screen_show_when(context, request) {
+
+    return new Promise((fulfill, reject) => {
+
+        const _screen = find_theme_screen(context, request.screen);
+
+        if (!_screen) {
+            return reject();
+        }
+
+        const _sensor = request.sensor ? context.state.sensors[request.sensor] : null;
+
+        if (request.sensor && (!_sensor || !_sensor.active)) {
+            return fulfill({ status: 'invalid sensor', show_when: _screen.show_when || '' });
+        }
+
+        if (request.sensor) {
+            _screen.show_when = request.sensor;
+        }
+        else {
+            delete _screen.show_when;
+        }
+
+        set_dirty(context);
+
+        fulfill({ status: 'success', show_when: _screen.show_when || '' });
+    });
 }
 
 function set_screen_enabled(context, request) {
@@ -1272,7 +1306,7 @@ function config_sensor_add(context, request) {
                     return _module.sample(rate, format, _config);
                 }, stop: () => {
                     return _module.stop(_config);
-                }};
+                }, active: _module.active ? () => _module.active(_config) : null };
     
                 fulfill({ status: 'success', name: _name });
             
@@ -1403,6 +1437,7 @@ module.exports.init = function(web, context) {
         { method: 'post', url: '/api/set_screen_name',      type: 'application/json', callback: set_screen_name },
         { method: 'post', url: '/api/set_screen_duration',  type: 'application/json', callback: set_screen_duration },
         { method: 'post', url: '/api/set_screen_enabled',   type: 'application/json', callback: set_screen_enabled },
+        { method: 'post', url: '/api/set_screen_show_when', type: 'application/json', callback: set_screen_show_when },
         { method: 'post', url: '/api/add_screen',           type: 'application/json', callback: add_screen },
         { method: 'post', url: '/api/remove_screen',        type: 'application/json', callback: remove_screen },
         { method: 'post', url: '/api/next_screen',          type: 'application/json', callback: next_screen },

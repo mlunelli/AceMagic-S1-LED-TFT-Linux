@@ -561,6 +561,11 @@
                                 <Dropdown id="screen_enabled" v-model="edit_screen_enabled" :options="screen_status" optionValue="id" optionLabel="name" placeholder="Pick status" class="w-full" @update:modelValue="onSetScreenEnabled()"/>
                             </div>
 
+                            <div class="w-full md:w-2">
+                                <label class="w-full text-sm" for="screen_show_when">Show when</label>
+                                <Dropdown id="screen_show_when" v-model="edit_screen_show_when" :options="show_when_options" optionValue="id" optionLabel="name" class="w-full" @update:modelValue="onSetScreenShowWhen()"/>
+                            </div>
+
                             <div class="w-full md:w-auto">
                                 <label class="w-full text-sm" for="screen">Screen</label>       
                                 <InputGroup>
@@ -916,6 +921,7 @@ export default {
             edit_background: null,
             edit_screen_name: null,
             edit_screen_enabled: true,
+            edit_screen_show_when: '',
             unsaved_changes: false,
             uploading: [],
             orientation: [
@@ -962,6 +968,7 @@ export default {
             this.edit_background = this.screen.background || '#000000';
             this.edit_screen_name = this.screen.name || 'n/a';
             this.edit_screen_enabled = this.screen.enabled !== false;
+            this.edit_screen_show_when = this.screen.show_when || '';
 
             this.unsaved_changes = this.config.unsaved_changes || false;
             
@@ -980,6 +987,13 @@ export default {
     },
     beforeUnmount() {
         clearTimeout(this.timeout);
+    },
+    computed: {
+        // a screen can wait for any sensor that knows when it is active (kodi playing)
+        show_when_options() {
+
+            return [ { id: '', name: 'Always' } ].concat((this.sensors || []).filter(each => each.trigger).map(each => ({ id: each.name, name: each.name + ' active' })));
+        }
     },
     methods: {
 
@@ -1087,6 +1101,14 @@ export default {
 
             return api.set_screen_enabled(this.screen.id, this.edit_screen_enabled).then(() => {
                 this.screen.enabled = this.edit_screen_enabled;
+                this.unsaved_changes = true;
+            });
+        },
+        onSetScreenShowWhen() {
+
+            return api.set_screen_show_when(this.screen.id, this.edit_screen_show_when).then(response => {
+                this.screen.show_when = response.show_when || undefined;
+                this.edit_screen_show_when = response.show_when || '';
                 this.unsaved_changes = true;
             });
         },
@@ -1439,6 +1461,7 @@ export default {
                     this.edit_background = this.screen.background || '#000000';
                     this.edit_screen_name = this.screen.name || 'n/a';
                     this.edit_screen_enabled = this.screen.enabled !== false;
+                    this.edit_screen_show_when = this.screen.show_when || '';
 
                     this.screen.widgets.forEach(each => {
 
@@ -1631,6 +1654,7 @@ export default {
                 this.edit_background = this.screen.background || '#000000';
                 this.edit_screen_name = this.screen.name || 'n/a';
                 this.edit_screen_enabled = this.screen.enabled !== false;
+                this.edit_screen_show_when = this.screen.show_when || '';
                 
                 this.screen.widgets.forEach(each => {
                     

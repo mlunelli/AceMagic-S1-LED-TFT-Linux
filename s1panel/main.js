@@ -230,12 +230,26 @@ function update_device_screen(context, state, config, theme) {
     });
 }
 
-function is_screen_enabled(screen) {
+/*
+ * a screen is in the rotation when it is enabled and, if it has a show_when
+ * sensor, while that sensor reports itself active (kodi: something is playing)
+ */
+function is_screen_enabled(screen, state) {
 
-    return screen && screen.enabled !== false;
+    if (!screen || false === screen.enabled) {
+        return false;
+    }
+
+    if (!screen.show_when) {
+        return true;
+    }
+
+    const _sensor = state ? state.sensors[screen.show_when] : null;
+
+    return _sensor && _sensor.active ? _sensor.active() : false;
 }
 
-function find_next_enabled_index(screens, start_index) {
+function find_next_enabled_index(screens, start_index, state) {
 
     const _count = screens.length;
 
@@ -247,7 +261,7 @@ function find_next_enabled_index(screens, start_index) {
 
         const _index = (start_index + i) % _count;
 
-        if (is_screen_enabled(screens[_index])) {
+        if (is_screen_enabled(screens[_index], state)) {
             return _index;
         }
     }
@@ -255,11 +269,11 @@ function find_next_enabled_index(screens, start_index) {
     return start_index;
 }
 
-function find_first_enabled_index(screens) {
+function find_first_enabled_index(screens, state) {
 
     for (var i = 0; i < screens.length; i++) {
 
-        if (is_screen_enabled(screens[i])) {
+        if (is_screen_enabled(screens[i], state)) {
             return i;
         }
     }
@@ -307,9 +321,11 @@ function fetch_screen(state, config, theme) {
 
     var _screen = theme.screens[state.screen_index];
 
-    if (_screen && !is_screen_enabled(_screen)) {
+    // a screen that dropped out of the rotation while on the panel, a show_when
+    // that stopped being active included, hands over to the next one right away
+    if (_screen && !is_screen_enabled(_screen, state)) {
 
-        state.screen_index = find_first_enabled_index(theme.screens);
+        state.screen_index = find_next_enabled_index(theme.screens, state.screen_index, state);
         _screen = theme.screens[state.screen_index];
     }
 
@@ -322,7 +338,7 @@ function fetch_screen(state, config, theme) {
 
             if (!state.screen_paused) {
 
-                state.screen_index = find_next_enabled_index(theme.screens, state.screen_index);
+                state.screen_index = find_next_enabled_index(theme.screens, state.screen_index, state);
             }
             else {
 
@@ -728,7 +744,7 @@ function initialize(state, config, theme) {
                 return _module.sample(rate, format, _config);
             }, stop: () => {
                 return _module.stop ? _module.stop(_config) : Promise.resolve();
-            }};
+            }, active: _module.active ? () => _module.active(_config) : null };
         }
     });
 
@@ -739,7 +755,7 @@ function initialize(state, config, theme) {
     // sort screens by id
     theme.screens.sort((a, b) => a.id - b.id);
 
-    state.screen_index = find_first_enabled_index(theme.screens);
+    state.screen_index = find_first_enabled_index(theme.screens, state);
     state.gui_screen_index = state.screen_index;
     state.change_screen = state.screen_index;
 
