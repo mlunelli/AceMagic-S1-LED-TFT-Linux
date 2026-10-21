@@ -56,6 +56,13 @@
          }
       },
       {
+         "module": "sensors/gpu.js",
+         "config": {
+            "max_points": 300,
+            "interval": 1000
+         }
+      },
+      {
          "module": "sensors/cpu_power.js",
          "config": {
             "max_points": 300,
