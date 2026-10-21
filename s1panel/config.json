@@ -107,7 +107,8 @@
       "widgets/iconify.js",
       "widgets/weather_icon.js",
       "widgets/scroll_text.js",
-      "widgets/sparkline.js"
+      "widgets/sparkline.js",
+      "widgets/needle_gauge.js"
    ],
    "canvas": {
       "width": 320,
